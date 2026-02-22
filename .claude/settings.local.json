@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find api:*)",
+      "Bash(find .:*)",
+      "Bash(curl:*)",
+      "Bash(pip show:*)"
+    ]
+  }
+}

@@ -193,6 +193,7 @@ function App() {
   const [escalationFlash, setEscalationFlash] = useState<{ threshold: number; severity: string; total: number } | null>(null)
   const [previewData, setPreviewData] = useState<{ round: number; limit: number; vetoes_used: number; teams: ProposalPreview[] } | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
+  const isUN = Boolean(data?.team && ((data.team.team_type ?? '').toLowerCase() === 'un' || data.team.nation_code === 'UN'))
   const timer = useRoundTimer(timerSeed)
   const effectiveGlobal = globalState ?? data?.global ?? leaderboard?.global ?? DEFAULT_GLOBAL_STATE
   const playCue = useCallback((frequency = 420, duration = 0.25) => {
@@ -517,11 +518,35 @@ function App() {
     const autoLockHandler = (payload: { proposals: Proposal[] }) => {
       setData((prev) => (prev ? { ...prev, proposals: payload.proposals } : prev))
     }
+    const vetoHandler = (payload: { proposal_id: number; status: string; vetoed_by_user_id?: number; vetoed_reason?: string }) => {
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              proposals: prev.proposals.map((proposal) =>
+                proposal.id === payload.proposal_id
+                  ? {
+                      ...proposal,
+                      status: payload.status,
+                      vetoed_by_user_id: payload.vetoed_by_user_id ?? null,
+                      vetoed_reason: payload.vetoed_reason ?? null,
+                    }
+                  : proposal,
+              ),
+            }
+          : prev,
+      )
+      if (isUN) {
+        refreshPreview()
+      }
+    }
     socket.on('proposals:auto_locked', autoLockHandler)
+    socket.on('proposal:vetoed', vetoHandler)
     return () => {
       socket.off('proposals:auto_locked', autoLockHandler)
+      socket.off('proposal:vetoed', vetoHandler)
     }
-  }, [authRequired, data?.team?.id, viewMode])
+  }, [authRequired, data?.team?.id, viewMode, isUN, refreshPreview])
 
   useEffect(() => {
     if (!crisisFlash) return
@@ -579,7 +604,6 @@ function App() {
   const nextThreshold =
     (effectiveGlobal.escalation_thresholds ?? []).find((value) => value > totalEscalation) ??
     null
-  const isUN = data.team.team_type === 'un' || data.team.nation_code === 'UN'
   const vetoesUsed = previewData?.vetoes_used ?? 0
   const vetoLimit = previewData?.limit ?? 1
   const vetoLimitReached = vetoesUsed >= vetoLimit
@@ -685,6 +709,17 @@ function App() {
     }
   }
 
+  const handleVetoProposal = async (proposalId: number) => {
+    try {
+      await vetoProposal(proposalId)
+      await loadGameState()
+      await refreshPreview()
+    } catch (err) {
+      console.error(err)
+      alert('Unable to veto this proposal (limit reached or already locked).')
+    }
+  }
+
   const activeProposals: Proposal[] = data.proposals || []
 
   return (
@@ -787,6 +822,7 @@ function App() {
                             False flag queued: {teamOptions.find((team) => team.team_id === proposal.false_flag_target_team_id)?.nation_name ?? proposal.false_flag_target_team_id}
                           </p>
                         )}
+                        {proposal.status === 'vetoed' && <p className="text-[10px] uppercase tracking-widest text-warroom-amber">Vetoed by Peace Council</p>}
                       </div>
                       <div className="flex items-center gap-2">
                         <button className="rounded border border-slate-600 px-2 text-xs disabled:opacity-40" onClick={() => handleVote(proposal.id, 1)} disabled={votingDisabled}>
@@ -864,6 +900,36 @@ function App() {
               </ul>
             )}
           </div>
+          {isUN && previewData && (
+            <div className="rounded border border-slate-700/70 bg-warroom-blue/40 p-4 text-sm text-slate-200">
+              <div className="flex items-center justify-between">
+                <h3 className="font-pixel text-xs text-warroom-cyan">Peace Council Oversight</h3>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                  Vetoes {previewData.vetoes_used}/{previewData.limit}
+                </p>
+              </div>
+              <div className="mt-3 space-y-3 max-h-56 overflow-y-auto">
+                {previewData.teams.map((team) => (
+                  <div key={team.team_id} className="rounded border border-slate-700/60 bg-warroom-blue/30 p-2">
+                    <p className="text-xs uppercase text-slate-400">{team.nation_name}</p>
+                    {team.proposals.map((proposal) => (
+                      <div key={proposal.id} className="mt-1 rounded border border-slate-700/50 bg-slate-900/40 p-2 text-xs">
+                        <p>
+                          Slot {proposal.slot}: {proposal.action_code} ({proposal.status}) — votes {proposal.votes}
+                        </p>
+                        {proposal.status === 'draft' && !vetoLimitReached && (
+                          <button className="mt-1 w-full rounded border border-warroom-amber/40 bg-warroom-amber/10 py-1 text-[10px] uppercase tracking-widest text-warroom-amber" onClick={() => handleVetoProposal(proposal.id)}>
+                            Veto Proposal
+                          </button>
+                        )}
+                        {proposal.status === 'vetoed' && <p className="text-[10px] uppercase tracking-widest text-warroom-amber">Vetoed</p>}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <aside className="space-y-6">

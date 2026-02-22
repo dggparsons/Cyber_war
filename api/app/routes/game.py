@@ -15,6 +15,7 @@ from ..services.alliances import list_alliances_for_team
 from ..services.round_manager import round_manager
 from ..services.global_state import get_global_state, serialize_global_state
 from ..services.lifelines import award_lifeline, list_lifelines, consume_lifeline, queue_false_flag
+from ..services.proposals import build_proposal_preview
 from ..utils.passwords import verify_password
 
 
@@ -321,43 +322,8 @@ def preview_all_proposals():
     if not (_current_user_is_un() or _current_user_is_gm()):
         return jsonify({"error": "un_only"}), 403
     round_obj = get_active_round()
-    proposals = (
-        ActionProposal.query.filter_by(round_id=round_obj.id)
-        .order_by(ActionProposal.team_id, ActionProposal.slot, ActionProposal.created_at)
-        .all()
-    )
-    team_cache: dict[int, dict] = {}
-    for proposal in proposals:
-        if proposal.team_id not in team_cache:
-            team_obj = Team.query.get(proposal.team_id)
-            if not team_obj:
-                continue
-            team_cache[proposal.team_id] = {
-                "team_id": team_obj.id,
-                "nation_name": team_obj.nation_name,
-                "proposals": [],
-            }
-        total_votes = sum(v.value for v in proposal.votes)
-        team_cache[proposal.team_id]["proposals"].append(
-            {
-                "id": proposal.id,
-                "slot": proposal.slot,
-                "action_code": proposal.action_code,
-                "status": proposal.status,
-                "target_team_id": proposal.target_team_id,
-                "votes": total_votes,
-                "vetoed_by_user_id": proposal.vetoed_by_user_id,
-            }
-        )
-    veto_count = sum(1 for proposal in proposals if proposal.status == "vetoed")
-    return jsonify(
-        {
-            "round": round_obj.round_number,
-            "limit": 1,
-            "vetoes_used": veto_count,
-            "teams": list(team_cache.values()),
-        }
-    )
+    preview = build_proposal_preview(round_obj)
+    return jsonify(preview)
 
 
 @game_bp.post("/intel/solve")
@@ -453,6 +419,12 @@ def veto_proposal():
     proposal.vetoed_by_user_id = current_user.id
     proposal.vetoed_reason = reason or "Peace Council veto"
     db.session.add(proposal)
+    message = (
+        f"UN Peace Council vetoed {Team.query.get(proposal.team_id).nation_name if proposal.team_id else 'a team'}'s "
+        f"proposal in Slot {proposal.slot}."
+    )
+    news_event = NewsEvent(message=message)
+    db.session.add(news_event)
     db.session.commit()
     event_payload = {
         "proposal_id": proposal.id,

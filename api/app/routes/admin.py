@@ -12,6 +12,7 @@ from ..services.round_manager import round_manager
 from ..services.resolution import resolve_round, lock_top_proposals
 from ..services.global_state import serialize_global_state, set_nuke_unlocked
 from ..services.crisis import crisis_history, inject_crisis, list_available_crises, clear_crisis_state
+from ..services.proposals import build_proposal_preview
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -98,13 +99,15 @@ def resume_round_timer():
 @login_required
 @admin_required
 def admin_status():
-    return jsonify(
-        {
-            "global": serialize_global_state(),
-            "crises": crisis_history(),
-            "available_crises": list_available_crises(),
-        }
-    )
+    payload = {
+        "global": serialize_global_state(),
+        "crises": crisis_history(),
+        "available_crises": list_available_crises(),
+    }
+    round_obj = round_manager.current_round()
+    if round_obj:
+        payload["proposal_preview"] = build_proposal_preview(round_obj)
+    return jsonify(payload)
 
 
 @admin_bp.post("/nukes/toggle")
