@@ -1,0 +1,35 @@
+# Node and build artifacts
+node_modules/
+dist/
+build/
+.next/
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+
+# Environment / runtime files
+.env
+.env.*
+*.log
+*.pid
+*.pid.lock
+
+# Dependency caches
+.npm/
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vs/
+*.swp
+
+# Python virtual environments
+.venv/
+venv/
+
+# Misc
+coverage/
+playwright-report/
+test-results/
