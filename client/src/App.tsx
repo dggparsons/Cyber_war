@@ -212,6 +212,7 @@ function App() {
   const [targets, setTargets] = useState<Record<number, number>>({})
   const [timerSeed, setTimerSeed] = useState<RoundTimer>({ round: 1, remaining: 0, duration: 360, state: 'idle' })
   const [isBriefingOpen, setIsBriefingOpen] = useState(false)
+  const [isNationsOpen, setIsNationsOpen] = useState(false)
   const [diplomacyChannels, setDiplomacyChannels] = useState<any[]>([])
   const [diplomacyDrafts, setDiplomacyDrafts] = useState<Record<number, string>>({})
   const [diplomacyTarget, setDiplomacyTarget] = useState<number | ''>('')
@@ -804,15 +805,21 @@ function App() {
               <p className="text-[10px] uppercase tracking-widest text-slate-400">Global Escalation: {totalEscalation}{nextThreshold ? ` → Next at ${nextThreshold}` : ''}</p>
               <DoomsdayClock escalation={totalEscalation} />
             </div>
-            <button className="rounded border border-warroom-cyan/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-warroom-cyan hover:border-warroom-cyan" onClick={() => setIsBriefingOpen(true)}>
-              View Briefing
-            </button>
+            <div className="flex gap-2 justify-end">
+              <button className="rounded border border-warroom-cyan/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-warroom-cyan hover:border-warroom-cyan" onClick={() => setIsBriefingOpen(true)}>
+                View Briefing
+              </button>
+              <button className="rounded border border-warroom-amber/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-warroom-amber hover:border-warroom-amber" onClick={() => setIsNationsOpen(true)}>
+                Nations Intel
+              </button>
+            </div>
           </div>
         </div>
       </header>
       {isBriefingOpen && <BriefingModal briefing={data.briefing} onClose={() => setIsBriefingOpen(false)} />}
+      {isNationsOpen && <NationsModal myTeamId={data.team.id} entries={leaderboard?.entries ?? []} alliances={data.alliances} diplomacyChannels={diplomacyChannels} onClose={() => setIsNationsOpen(false)} />}
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[2fr_1fr]">
+      <main className="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[4fr_1fr]">
         <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 shadow-lg shadow-warroom-cyan/10 space-y-4">
           <h2 className="font-pixel text-sm text-warroom-cyan">Action Console</h2>
           {!nukeUnlocked && <p className="text-xs text-warroom-amber">Catastrophic actions are locked until the GM escalates the scenario.</p>}
@@ -1015,10 +1022,10 @@ function App() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+          <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 flex flex-col gap-3 min-h-[300px]">
             <h3 className="font-pixel text-xs text-warroom-cyan">Team Comms</h3>
             <p className="text-xs text-slate-500">{data.communications_hint}</p>
-            <div className="mt-3 h-40 overflow-y-auto rounded border border-slate-700/60 bg-warroom-blue/40 p-3 text-sm text-slate-300">
+            <div className="flex-1 overflow-y-auto rounded border border-slate-700/60 bg-warroom-blue/40 p-3 text-sm text-slate-300 min-h-[200px]">
               {messages.map((line, idx) => (
                 <p key={idx}>
                   <span className="text-warroom-cyan">{line.display_name}:</span> {line.content}
@@ -1445,6 +1452,89 @@ function BriefingModal({ briefing, onClose }: { briefing: GameState['briefing'];
   )
 }
 
+function NationsModal({ myTeamId, entries, alliances, diplomacyChannels, onClose }: {
+  myTeamId: number
+  entries: Array<{ team_id: number; nation_name: string; score: number; delta_from_baseline: number; escalation: number }>
+  alliances: Array<{ team_a_id: number; team_b_id: number; status: string; formed_at: string | null }>
+  diplomacyChannels: any[]
+  onClose: () => void
+}) {
+  const alliedIds = new Set(
+    alliances.map((a) => (a.team_a_id === myTeamId ? a.team_b_id : a.team_a_id))
+  )
+  const diplomacyIds = new Set(
+    diplomacyChannels.map((ch: any) => ch.with_team?.id ?? ch.target_team_id).filter(Boolean)
+  )
+
+  const getRelationship = (teamId: number) => {
+    if (teamId === myTeamId) return 'you'
+    if (alliedIds.has(teamId)) return 'allied'
+    if (diplomacyIds.has(teamId)) return 'diplomatic'
+    return 'neutral'
+  }
+
+  const relationshipLabel = (rel: string) => {
+    switch (rel) {
+      case 'you': return { text: 'YOU', color: 'text-warroom-cyan' }
+      case 'allied': return { text: 'ALLIED', color: 'text-emerald-400' }
+      case 'diplomatic': return { text: 'IN CONTACT', color: 'text-warroom-amber' }
+      default: return { text: 'NEUTRAL', color: 'text-slate-500' }
+    }
+  }
+
+  const sorted = [...entries].sort((a, b) => b.score - a.score)
+  const myEntry = entries.find((e) => e.team_id === myTeamId)
+  const myRank = sorted.findIndex((e) => e.team_id === myTeamId) + 1
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-warroom-amber/40 bg-slate-900/95 p-6 shadow-2xl shadow-warroom-amber/20">
+        <div className="flex items-center justify-between">
+          <h2 className="font-pixel text-warroom-amber">Nations Intel</h2>
+          <button className="text-xs uppercase text-slate-400 hover:text-warroom-amber" onClick={onClose}>Close</button>
+        </div>
+        {myEntry && (
+          <div className="mt-3 rounded border border-warroom-cyan/40 bg-warroom-cyan/5 p-3 text-sm">
+            <p className="text-xs uppercase tracking-widest text-slate-400">Your Standing</p>
+            <p className="text-warroom-cyan font-semibold">{myEntry.nation_name} — Rank #{myRank} of {entries.length}</p>
+            <p className="text-xs text-slate-400">Score: {myEntry.score} (delta {myEntry.delta_from_baseline >= 0 ? '+' : ''}{myEntry.delta_from_baseline}) | Escalation: {myEntry.escalation}</p>
+          </div>
+        )}
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {sorted.map((entry, idx) => {
+            const rel = getRelationship(entry.team_id)
+            const label = relationshipLabel(rel)
+            const isMe = entry.team_id === myTeamId
+            return (
+              <div key={entry.team_id} className={`rounded border p-3 ${isMe ? 'border-warroom-cyan/50 bg-warroom-cyan/5' : 'border-slate-700/70 bg-warroom-blue/30'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-warroom-amber font-pixel text-xs">#{idx + 1}</span>
+                    <span className={`font-semibold ${isMe ? 'text-warroom-cyan' : 'text-slate-100'}`}>{entry.nation_name}</span>
+                  </div>
+                  <span className={`text-[10px] uppercase tracking-widest font-semibold ${label.color}`}>{label.text}</span>
+                </div>
+                <div className="mt-2 flex gap-4 text-xs text-slate-400">
+                  <span>Score: <span className="text-slate-200">{entry.score}</span></span>
+                  <span>Delta: <span className={entry.delta_from_baseline >= 0 ? 'text-emerald-400' : 'text-red-400'}>{entry.delta_from_baseline >= 0 ? '+' : ''}{entry.delta_from_baseline}</span></span>
+                  <span>Escalation: <span className={entry.escalation > 20 ? 'text-red-400' : entry.escalation > 10 ? 'text-warroom-amber' : 'text-slate-200'}>{entry.escalation}</span></span>
+                </div>
+                {rel === 'allied' && <p className="mt-1 text-[10px] uppercase tracking-widest text-emerald-400/70">Active alliance in place</p>}
+                {rel === 'diplomatic' && <p className="mt-1 text-[10px] uppercase tracking-widest text-warroom-amber/70">Diplomacy channel open</p>}
+              </div>
+            )
+          })}
+        </div>
+        <div className="mt-4 flex gap-4 text-[10px] uppercase tracking-widest text-slate-500">
+          <span><span className="text-emerald-400">///</span> Allied</span>
+          <span><span className="text-warroom-amber">///</span> In Contact</span>
+          <span><span className="text-slate-500">///</span> Neutral</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ActiveCrisisBanner({ crisis }: { crisis: CrisisInfo }) {
   return (
     <div className="rounded border border-warroom-amber/60 bg-warroom-amber/10 p-4 text-sm text-warroom-amber">
@@ -1511,7 +1601,7 @@ function NewsTicker({ news }: { news: Array<{ id: number; message: string }> }) 
   return (
     <div className="bg-warroom-slate/70 text-center text-xs text-slate-300">
       <div className="mx-auto max-w-6xl overflow-hidden py-1">
-        <div className="animate-marquee whitespace-nowrap">
+        <div className="animate-marquee slow whitespace-nowrap">
           {news.map((item) => (
             <span key={item.id} className="mx-4">
               ⚡ {item.message}

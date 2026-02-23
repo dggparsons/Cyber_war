@@ -17,6 +17,14 @@
   animation: marquee 25s linear infinite;
 }
 
+.animate-marquee.slow {
+  animation-duration: 40s;
+}
+
+.animate-marquee.xslow {
+  animation-duration: 40s;
+}
+
 /* CRT scanline overlay */
 .crt-overlay {
   pointer-events: none;
