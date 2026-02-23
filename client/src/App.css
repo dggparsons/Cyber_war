@@ -16,3 +16,79 @@
   min-width: 100%;
   animation: marquee 25s linear infinite;
 }
+
+/* CRT scanline overlay */
+.crt-overlay {
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15) 0px,
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+/* Phosphor text glow */
+.text-glow {
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.6), 0 0 20px rgba(56, 189, 248, 0.3);
+}
+
+/* CRT flicker animation */
+@keyframes crt-flicker {
+  0% { opacity: 1; }
+  3% { opacity: 0.85; }
+  6% { opacity: 1; }
+  92% { opacity: 1; }
+  95% { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+
+.crt-flicker {
+  animation: crt-flicker 4s infinite;
+}
+
+/* Hacking animation for intel drops */
+@keyframes hack-pulse {
+  0%, 100% { border-color: rgba(56, 189, 248, 0.3); }
+  50% { border-color: rgba(34, 197, 94, 0.8); box-shadow: 0 0 12px rgba(34, 197, 94, 0.4); }
+}
+
+.hack-pulse {
+  animation: hack-pulse 2s ease-in-out infinite;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+/* Screen shake for escalation events */
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-2px, -1px); }
+  20% { transform: translate(2px, 1px); }
+  30% { transform: translate(-1px, 2px); }
+  40% { transform: translate(1px, -1px); }
+  50% { transform: translate(-2px, 1px); }
+  60% { transform: translate(2px, -1px); }
+  70% { transform: translate(-1px, -2px); }
+  80% { transform: translate(1px, 2px); }
+  90% { transform: translate(-2px, -1px); }
+}
+
+.screen-shake {
+  animation: screen-shake 0.5s ease-in-out;
+}
+
+/* Doomsday Clock gauge */
+.doomsday-gauge {
+  background: conic-gradient(
+    #ef4444 var(--doom-pct),
+    #1e293b var(--doom-pct)
+  );
+  border-radius: 50%;
+}

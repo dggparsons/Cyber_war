@@ -9,7 +9,7 @@ export function getTeamSocket(): Socket {
   if (!teamSocket) {
     teamSocket = io(`${API_BASE_URL}/team`, {
       withCredentials: true,
-      transports: ['polling'],
+      transports: ['polling', 'websocket'],
     })
   }
   return teamSocket
@@ -19,7 +19,7 @@ export function getGlobalSocket(): Socket {
   if (!globalSocket) {
     globalSocket = io(`${API_BASE_URL}/global`, {
       withCredentials: true,
-      transports: ['polling'],
+      transports: ['polling', 'websocket'],
     })
   }
   return globalSocket

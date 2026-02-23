@@ -20,6 +20,10 @@ def run_sim(model_name: str = "SimModel"):
     app = create_app()
     with app.app_context():
         db.create_all()
+        existing = AiRun.query.first()
+        if existing:
+            print(f"AI run already exists (id={existing.id}); skipping.")
+            return
         ai_run = AiRun(model_name=model_name)
         db.session.add(ai_run)
         db.session.flush()

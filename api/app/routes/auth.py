@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import secrets
+import uuid
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required, login_user, logout_user
@@ -40,17 +41,14 @@ def register():
         return jsonify({"error": "email is required"}), 400
 
     user = User.query.filter_by(email=email).first()
-    status_code = 200 if user else 201
+    if user:
+        return jsonify({"error": "Email already registered"}), 409
+
     password = generate_random_password(14)
     password_hash = hash_password(password)
 
-    if user:
-        user.display_name = display_name or user.display_name
-        user.password_hash = password_hash
-    else:
-        user = User(display_name=display_name, email=email, password_hash=password_hash)
-        db.session.add(user)
-
+    user = User(display_name=display_name, email=email, password_hash=password_hash)
+    db.session.add(user)
     db.session.commit()
 
     return (
@@ -63,10 +61,10 @@ def register():
                     "team_id": user.team_id,
                 },
                 "password": password,
-                "status": "password_reset" if status_code == 200 else "registered",
+                "status": "registered",
             }
         ),
-        status_code,
+        201,
     )
 
 
@@ -87,7 +85,14 @@ def join_with_code():
     if not team:
         return jsonify({"error": "team_not_found"}), 404
 
-    email = f"{display_name.replace(' ', '').lower()}+{join_code.lower()}@join.local"
+    # Check seat cap
+    current_count = User.query.filter_by(team_id=team.id).count()
+    if current_count >= team.seat_cap:
+        return jsonify({"error": "team_full", "message": f"Team has reached its seat cap of {team.seat_cap}"}), 409
+
+    # Random suffix guarantees uniqueness even with duplicate display names
+    suffix = uuid.uuid4().hex[:8]
+    email = f"{display_name.replace(' ', '').lower()}+{join_code.lower()}.{suffix}@join.local"
     password = generate_random_password(12)
     password_hash = hash_password(password)
 

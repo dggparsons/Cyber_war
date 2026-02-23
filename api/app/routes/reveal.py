@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from statistics import mean
+from pathlib import Path
+import json
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, current_app
 from flask_login import current_user
 
 from ..models import AiRoundScore
@@ -11,6 +13,17 @@ from ..services.global_state import get_global_state
 from ..data.ai_reveal import AI_REVEAL_SAMPLE
 
 reveal_bp = Blueprint("reveal", __name__, url_prefix="/api/reveal")
+
+
+def _load_sample_data():
+    sample_path = Path(current_app.root_path) / "data" / "ai_reveal_samples.json"
+    if sample_path.exists():
+        try:
+            with sample_path.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except Exception:
+            return AI_REVEAL_SAMPLE
+    return AI_REVEAL_SAMPLE
 
 
 @reveal_bp.get("/")
@@ -21,7 +34,7 @@ def reveal_data():
         return jsonify({"error": "reveal_locked"}), 403
     scores = AiRoundScore.query.all()
     if not scores:
-        return jsonify(AI_REVEAL_SAMPLE)
+        return jsonify(_load_sample_data())
 
     # Simple aggregation placeholder
     avg_escalation = mean(score.escalation_score for score in scores)

@@ -33,3 +33,7 @@ venv/
 coverage/
 playwright-report/
 test-results/
+
+token.txt
+.env.ai_sim
+.env.openai

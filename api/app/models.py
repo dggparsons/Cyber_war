@@ -230,6 +230,15 @@ class FalseFlagPlan(db.Model, TimestampMixin):
     lifeline_id = db.Column(db.Integer, db.ForeignKey("lifelines.id"), nullable=False)
 
 
+class OutcomeScoreHistory(db.Model, TimestampMixin):
+    __tablename__ = "outcome_score_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
+    round_id = db.Column(db.Integer, db.ForeignKey("rounds.id"), nullable=False)
+    outcome_score = db.Column(db.Integer, nullable=False)
+
+
 class AiRun(db.Model, TimestampMixin):
     __tablename__ = "ai_runs"
 

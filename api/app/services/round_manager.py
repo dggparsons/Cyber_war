@@ -22,6 +22,17 @@ class RoundManager:
         self._remaining: int = self.round_duration
         self._timer_state: TimerState = "idle"
 
+    def _get_duration_for_round(self, round_number: int) -> int:
+        """Return duration in seconds for a given round number from config."""
+        try:
+            durations = current_app.config.get("ROUND_DURATIONS", [])
+        except RuntimeError:
+            durations = []
+        idx = round_number - 1
+        if durations and 0 <= idx < len(durations):
+            return durations[idx] * 60
+        return 360
+
     def current_round(self) -> Round:
         round_obj = (
             Round.query.filter(Round.status == 'active')
@@ -30,6 +41,7 @@ class RoundManager:
         )
         if round_obj:
             self._active_round_id = round_obj.id
+            self.round_duration = self._get_duration_for_round(round_obj.round_number)
             if not self._timer_task and self._timer_state == "idle":
                 self._start_timer(round_obj, resume_from=self._compute_remaining(round_obj))
             return round_obj
@@ -44,6 +56,7 @@ class RoundManager:
             round_obj.started_at = datetime.now(timezone.utc)
             db.session.add(round_obj)
             db.session.commit()
+            self.round_duration = self._get_duration_for_round(round_obj.round_number)
             socketio.emit('round:started', {'round': round_obj.round_number}, namespace='/global')
             self._start_timer(round_obj)
             return round_obj
@@ -51,6 +64,7 @@ class RoundManager:
         round_obj = Round(round_number=1, status='active', started_at=datetime.now(timezone.utc))
         db.session.add(round_obj)
         db.session.commit()
+        self.round_duration = self._get_duration_for_round(round_obj.round_number)
         socketio.emit('round:started', {'round': round_obj.round_number}, namespace='/global')
         self._start_timer(round_obj)
         return round_obj
@@ -71,6 +85,7 @@ class RoundManager:
         db.session.commit()
 
         self._stop_timer()
+        self.round_duration = self._get_duration_for_round(next_round.round_number)
         socketio.emit('round:ended', {'round': round_obj.round_number}, namespace='/global')
         socketio.emit('round:started', {'round': next_round.round_number}, namespace='/global')
         self._start_timer(next_round)
@@ -80,6 +95,7 @@ class RoundManager:
         active = Round.query.filter(Round.status == 'active').first()
         if active:
             self._active_round_id = active.id
+            self.round_duration = self._get_duration_for_round(active.round_number)
             if not self._timer_task and self._timer_state == "idle":
                 self._start_timer(active, resume_from=self._compute_remaining(active))
             return active
@@ -98,6 +114,7 @@ class RoundManager:
         round_obj.started_at = datetime.now(timezone.utc)
         db.session.add(round_obj)
         db.session.commit()
+        self.round_duration = self._get_duration_for_round(round_obj.round_number)
         socketio.emit('round:started', {'round': round_obj.round_number}, namespace='/global')
         self._start_timer(round_obj)
         return round_obj

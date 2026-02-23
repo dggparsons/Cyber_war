@@ -415,14 +415,14 @@ def veto_proposal():
         vetoes_used = ActionProposal.query.filter_by(round_id=proposal.round_id, status="vetoed").count()
         if vetoes_used >= 1:
             return jsonify({"error": "veto_limit_reached"}), 400
+    team_obj = Team.query.get(proposal.team_id)
     proposal.status = "vetoed"
     proposal.vetoed_by_user_id = current_user.id
     proposal.vetoed_reason = reason or "Peace Council veto"
     db.session.add(proposal)
-    message = (
-        f"UN Peace Council vetoed {Team.query.get(proposal.team_id).nation_name if proposal.team_id else 'a team'}'s "
-        f"proposal in Slot {proposal.slot}."
-    )
+    team_name = team_obj.nation_name if team_obj else "a team"
+    action_name = proposal.action_code
+    message = f"UN Peace Council vetoed {team_name}'s Slot {proposal.slot} ({action_name})."
     news_event = NewsEvent(message=message)
     db.session.add(news_event)
     db.session.commit()

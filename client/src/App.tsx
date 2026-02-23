@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import type { FormEvent } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts'
 import './App.css'
 import {
   fetchGameState,
@@ -43,6 +44,36 @@ import {
 import { useChat } from './hooks/useChat'
 import { useRoundTimer, type RoundTimer } from './hooks/useRoundTimer'
 import { getTeamSocket, getGlobalSocket } from './lib/socket'
+
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: string}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: '' };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  render() {
+    if (this.state.hasError) {
+      return <div className="min-h-screen bg-warroom-blue flex items-center justify-center text-red-400 p-8">
+        <div className="text-center"><h1 className="text-2xl font-pixel mb-4">SYSTEM ERROR</h1><p>{this.state.error}</p><button onClick={() => this.setState({hasError: false, error: ''})} className="mt-4 px-4 py-2 bg-warroom-cyan text-black rounded">Retry</button></div>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
+function getCategoryColor(category: string): string {
+  switch(category) {
+    case 'de_escalation': return '#22c55e'; // green
+    case 'status_quo': return '#f8fafc'; // white
+    case 'posturing': return '#eab308'; // yellow
+    case 'non_violent': return '#f97316'; // orange
+    case 'violent': return '#ef4444'; // red
+    case 'nuclear': return '#a855f7'; // purple
+    default: return '#f8fafc';
+  }
+}
 
 const viewMode = new URLSearchParams(window.location.search).get('view') ?? 'player'
 const SLOT_IDS = [1, 2, 3]
@@ -192,6 +223,8 @@ function App() {
   const [falseFlagTargets, setFalseFlagTargets] = useState<Record<number, number | ''>>({})
   const [escalationFlash, setEscalationFlash] = useState<{ threshold: number; severity: string; total: number } | null>(null)
   const [previewData, setPreviewData] = useState<{ round: number; limit: number; vetoes_used: number; teams: ProposalPreview[] } | null>(null)
+  const [connected, setConnected] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const isUN = Boolean(data?.team && ((data.team.team_type ?? '').toLowerCase() === 'un' || data.team.nation_code === 'UN'))
   const timer = useRoundTimer(timerSeed)
@@ -560,6 +593,36 @@ function App() {
     return () => clearTimeout(timeout)
   }, [escalationFlash])
 
+  useEffect(() => {
+    const socket = getGlobalSocket()
+    setConnected(socket.connected)
+    const onConnect = () => setConnected(true)
+    const onDisconnect = () => setConnected(false)
+    socket.on('connect', onConnect)
+    socket.on('disconnect', onDisconnect)
+    return () => {
+      socket.off('connect', onConnect)
+      socket.off('disconnect', onDisconnect)
+    }
+  }, [])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const timerDisplay = useMemo(() => formatTimerDisplay(timer), [timer])
+  const timerProgress = useMemo(() => {
+    if (!timer.duration) return 0
+    const ratio = timer.remaining / timer.duration
+    return Math.max(0, Math.min(1, ratio))
+  }, [timer.remaining, timer.duration])
+
+  const nukeUnlocked = effectiveGlobal.nuke_unlocked
+  const availableActions = useMemo(
+    () => actions.filter((action) => nukeUnlocked || action.category !== 'nuclear'),
+    [actions, nukeUnlocked],
+  )
+
   if (viewMode === 'spectator') {
     return <SpectatorView leaderboard={leaderboard} timer={timer} reveal={revealData} news={newsFeed} global={effectiveGlobal} />
   }
@@ -590,13 +653,6 @@ function App() {
     )
   }
 
-  const timerDisplay = useMemo(() => formatTimerDisplay(timer), [timer])
-  const timerProgress = useMemo(() => {
-    if (!timer.duration) return 0
-    const ratio = timer.remaining / timer.duration
-    return Math.max(0, Math.min(1, ratio))
-  }, [timer.remaining, timer.duration])
-
   const teamOptions = leaderboard?.entries.filter((entry) => entry.team_id !== data.team.id) ?? []
   const lifelines = data.lifelines ?? []
   const falseFlagCount = lifelines.find((item) => item.lifeline_type === 'false_flag')?.remaining_uses ?? 0
@@ -607,14 +663,9 @@ function App() {
   const vetoesUsed = previewData?.vetoes_used ?? 0
   const vetoLimit = previewData?.limit ?? 1
   const vetoLimitReached = vetoesUsed >= vetoLimit
-  const nukeUnlocked = effectiveGlobal.nuke_unlocked
   const doomActive = effectiveGlobal.doom_triggered
   const activeCrisis = effectiveGlobal.active_crisis ?? null
   const doomMessage = effectiveGlobal.doom_message ?? 'A catastrophic strike ended the scenario.'
-  const availableActions = useMemo(
-    () => actions.filter((action) => nukeUnlocked || action.category !== 'nuclear'),
-    [actions, nukeUnlocked],
-  )
 
   const handleSelectionChange = (slot: number, value: string) => setSelection((prev) => ({ ...prev, [slot]: value }))
   const handleTargetChange = (slot: number, value: number) => setTargets((prev) => ({ ...prev, [slot]: value }))
@@ -724,6 +775,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-warroom-blue text-slate-100">
+      <div className="crt-overlay" />
       {doomActive && <DoomOverlay message={doomMessage} />}
       {escalationFlash && <EscalationAlert flash={escalationFlash} />}
       {crisisFlash && <CrisisAlert crisis={crisisFlash} />}
@@ -732,7 +784,7 @@ function App() {
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-slate-400">Team</p>
-            <h1 className="font-pixel text-lg text-warroom-cyan">{data.team.nation_name}</h1>
+            <h1 className="font-pixel text-lg text-warroom-cyan text-glow flex items-center gap-2">{data.team.nation_name}<span className={`inline-block h-2 w-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-500'}`} title={connected ? 'Connected' : 'Disconnected'} /></h1>
             <p className="text-xs text-slate-400">Role: {data.team.role ?? 'player'}</p>
           </div>
           <div className="text-right space-y-2">
@@ -750,6 +802,7 @@ function App() {
               {timer.state === 'paused' && <p className="text-[10px] uppercase tracking-widest text-warroom-amber">Paused by GM</p>}
               {timer.state === 'complete' && <p className="text-[10px] uppercase tracking-widest text-slate-400">Submissions locked</p>}
               <p className="text-[10px] uppercase tracking-widest text-slate-400">Global Escalation: {totalEscalation}{nextThreshold ? ` → Next at ${nextThreshold}` : ''}</p>
+              <DoomsdayClock escalation={totalEscalation} />
             </div>
             <button className="rounded border border-warroom-cyan/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-warroom-cyan hover:border-warroom-cyan" onClick={() => setIsBriefingOpen(true)}>
               View Briefing
@@ -773,7 +826,7 @@ function App() {
                 <select className="mt-2 w-full rounded border border-slate-700 bg-warroom-blue/60 px-2 py-1 text-sm disabled:opacity-50" value={selection[slot] ?? ''} onChange={(e) => handleSelectionChange(slot, e.target.value)} disabled={doomActive}>
                   <option value="">Select action</option>
                   {availableActions.map((action) => (
-                    <option key={action.code} value={action.code}>
+                    <option key={action.code} value={action.code} style={{ color: getCategoryColor(action.category) }}>
                       {action.name}
                     </option>
                   ))}
@@ -868,7 +921,7 @@ function App() {
             <h3 className="font-pixel text-xs text-warroom-cyan">Intel Drops</h3>
             <div className="mt-3 space-y-2 text-sm text-slate-300">
               {data.intel_drops.map((intel) => (
-                <div key={intel.id} className="rounded border border-slate-700/60 p-3">
+                <div key={intel.id} className="rounded border border-slate-700/60 p-3 hack-pulse">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-slate-100">{intel.title}</span>
                     <span className={`text-xs uppercase ${intel.status === 'solved' ? 'text-emerald-400' : 'text-warroom-amber'}`}>{intel.status}</span>
@@ -971,6 +1024,7 @@ function App() {
                   <span className="text-warroom-cyan">{line.display_name}:</span> {line.content}
                 </p>
               ))}
+              <div ref={chatEndRef} />
             </div>
             <ChatComposer onSend={sendMessage} />
           </div>
@@ -1028,11 +1082,18 @@ function App() {
           {shouldShowReveal && revealData && (
             <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200">
               <h3 className="font-pixel text-xs text-warroom-cyan">Reveal Preview</h3>
-              <p className="mt-2 text-slate-300">
-                AI avg escalation: {Math.round(revealData.ai_models[0].avg_escalation)} vs Human outcome {revealData.human_vs_ai.human_outcome}
-              </p>
-              <p className="text-xs text-warroom-amber">
-                First AI violent round: {revealData.ai_models[0].first_violent_round}
+              <div className="mt-2 space-y-2">
+                {revealData.ai_models.map((model, index) => (
+                  <div key={index} className="rounded border border-slate-700/60 bg-slate-900/40 p-2">
+                    <p className="text-slate-200 font-semibold">{model.model_name}</p>
+                    <p className="text-xs text-slate-400">Avg escalation: {Math.round(model.avg_escalation)}</p>
+                    <p className="text-xs text-slate-400">First violent round: {model.first_violent_round}</p>
+                    <p className="text-xs text-warroom-amber">{model.launched_nukes ? 'Launched nukes' : 'Did not launch nukes'}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-slate-400">
+                Human outcome {revealData.human_vs_ai.human_outcome} vs AI outcome {revealData.human_vs_ai.ai_outcome}
               </p>
             </div>
           )}
@@ -1083,7 +1144,10 @@ function SpectatorView({ leaderboard, timer, reveal, news, global }: { leaderboa
           {timer.state === 'paused' && <p className="text-xs text-warroom-amber">GM has paused submissions</p>}
           {timer.state === 'complete' && <p className="text-xs text-slate-400">Timer elapsed — awaiting resolution</p>}
           {doomActive && <p className="text-xs text-warroom-amber">Catastrophic strike detected — game over.</p>}
-          <p className="text-xs text-slate-400">Global Escalation: {totalEscalation}</p>
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-slate-400">Global Escalation: {totalEscalation}</p>
+            <DoomsdayClock escalation={totalEscalation} />
+          </div>
         </div>
         {crisis && (
           <div className="mt-4 rounded border border-warroom-amber/60 bg-warroom-amber/10 p-4 text-sm text-warroom-amber">
@@ -1106,11 +1170,24 @@ function SpectatorView({ leaderboard, timer, reveal, news, global }: { leaderboa
             </div>
           ))}
         </div>
-        {reveal && (doomActive || (global?.nuke_unlocked && global?.doom_triggered)) && (
+        <div className="mt-6 rounded border border-slate-700 bg-slate-900/60 p-4">
+          <h3 className="font-pixel text-xs text-warroom-cyan">Score Overview</h3>
+          <LeaderboardBarChart entries={leaderboard.entries.map(e => ({ nation_name: e.nation_name, score: e.score, baseline: e.score - (e.delta_from_baseline ?? 0) }))} />
+        </div>
+        {reveal && doomActive && (
           <div className="mt-8 rounded border border-slate-700 bg-slate-900/60 p-4">
             <h2 className="font-pixel text-sm text-warroom-cyan">AI Shadow Comparison</h2>
-            <p className="text-sm text-slate-300">AI avg escalation: {Math.round(reveal.ai_models[0].avg_escalation)}</p>
-            <p className="text-sm text-slate-300">Human outcome: {reveal.human_vs_ai.human_outcome}</p>
+            <div className="mt-2 grid gap-3 md:grid-cols-3">
+              {reveal.ai_models.map((model, index) => (
+                <div key={index} className="rounded border border-slate-700/60 bg-slate-900/40 p-3 text-xs text-slate-300">
+                  <p className="text-slate-100 font-semibold">{model.model_name}</p>
+                  <p>Avg escalation: {Math.round(model.avg_escalation)}</p>
+                  <p>First violent round: {model.first_violent_round}</p>
+                  <p>{model.launched_nukes ? 'Launched nuclear strike' : 'No nukes'}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-sm text-slate-300">Human outcome: {reveal.human_vs_ai.human_outcome} vs AI outcome: {reveal.human_vs_ai.ai_outcome}</p>
           </div>
         )}
       </div>
@@ -1125,6 +1202,7 @@ function AdminPanel() {
   const [crisisHistory, setCrisisHistory] = useState<CrisisInfo[]>([])
   const [availableCrises, setAvailableCrises] = useState<CrisisInfo[]>([])
   const [selectedCrisis, setSelectedCrisis] = useState('')
+  const [proposalPreview, setProposalPreview] = useState<any | null>(null)
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -1132,6 +1210,7 @@ function AdminPanel() {
       setGlobalStatus(data.global ?? DEFAULT_GLOBAL_STATE)
       setCrisisHistory(data.crises ?? [])
       setAvailableCrises(data.available_crises ?? [])
+      setProposalPreview(data.proposal_preview ?? null)
     } catch (err) {
       console.error(err)
       setMessage('Failed to fetch GM status — ensure you are authenticated.')
@@ -1169,6 +1248,17 @@ function AdminPanel() {
     } catch (err) {
       console.error(err)
       setMessage('Admin action failed — ensure you are logged in as GM.')
+    }
+  }
+
+  const gmVetoProposal = async (proposalId: number) => {
+    try {
+      await vetoProposal(proposalId)
+      setMessage('Veto issued')
+      refreshStatus()
+    } catch (err) {
+      console.error(err)
+      setMessage('Veto failed — proposal may already be locked.')
     }
   }
 
@@ -1284,6 +1374,35 @@ function AdminPanel() {
           </ul>
         </div>
       )}
+
+      {proposalPreview && (
+        <div className="mt-6 rounded border border-slate-700 bg-slate-900/60 p-4">
+          <h2 className="font-pixel text-sm text-warroom-cyan">Proposal Oversight</h2>
+          <p className="text-xs text-slate-400">Vetoes used: {proposalPreview.vetoes_used}/{proposalPreview.limit}</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {proposalPreview.teams.map((team: ProposalPreview) => (
+              <div key={team.team_id} className="rounded border border-slate-700/60 bg-warroom-blue/20 p-3 text-xs text-slate-300">
+                <p className="text-xs uppercase text-slate-400">{team.nation_name}</p>
+                <div className="mt-2 space-y-2">
+                  {team.proposals.map((proposal) => (
+                    <div key={proposal.id} className="rounded border border-slate-700/60 bg-slate-900/40 p-2">
+                      <p>
+                        Slot {proposal.slot}: {proposal.action_code} ({proposal.status}) — votes {proposal.votes}
+                      </p>
+                      {proposal.status === 'draft' && (
+                        <button className="mt-1 w-full rounded border border-warroom-amber/40 bg-warroom-amber/10 py-1 text-[10px] uppercase tracking-widest text-warroom-amber" onClick={() => gmVetoProposal(proposal.id)}>
+                          Veto
+                        </button>
+                      )}
+                      {proposal.status === 'vetoed' && <p className="text-[10px] uppercase tracking-widest text-warroom-amber">Already vetoed</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1371,13 +1490,21 @@ function EscalationAlert({ flash }: { flash: { threshold: number; severity: stri
           ? 'bg-warroom-amber/80 border-warroom-amber text-slate-900'
           : 'bg-warroom-cyan/80 border-warroom-cyan text-slate-900'
   return (
-    <div className={`fixed top-2 left-1/2 z-40 w-80 -translate-x-1/2 rounded border px-3 py-2 text-center text-xs font-semibold uppercase tracking-widest ${color}`}>
+    <div className={`fixed top-2 left-1/2 z-40 w-80 -translate-x-1/2 rounded border px-3 py-2 text-center text-xs font-semibold uppercase tracking-widest screen-shake ${color}`}>
       Global escalation {flash.total} crossed {flash.threshold}
     </div>
   )
 }
 
-export default App
+function WrappedApp() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+}
+
+export default WrappedApp
 
 function NewsTicker({ news }: { news: Array<{ id: number; message: string }> }) {
   if (!news.length) return null
@@ -1396,30 +1523,62 @@ function NewsTicker({ news }: { news: Array<{ id: number; message: string }> }) 
   )
 }
 
+function DoomsdayClock({ escalation, maxEscalation = 200 }: { escalation: number; maxEscalation?: number }) {
+  const pct = Math.min(100, (escalation / maxEscalation) * 100);
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div
+        className="doomsday-gauge w-16 h-16 flex items-center justify-center"
+        style={{ '--doom-pct': `${pct}%` } as React.CSSProperties}
+      >
+        <div className="w-12 h-12 rounded-full bg-warroom-blue flex items-center justify-center">
+          <span className="text-xs font-pixel text-red-400">{Math.round(pct)}%</span>
+        </div>
+      </div>
+      <span className="text-[10px] text-gray-400 font-pixel">DOOM</span>
+    </div>
+  );
+}
+
 function EscalationChart({ series }: { series: Array<{ round: number; score: number }> }) {
   if (!series || series.length === 0) {
-    return <p className="text-xs text-slate-500">Waiting for data…</p>
+    return <p className="text-xs text-slate-500">Waiting for data...</p>
   }
-  const maxScore = Math.max(...series.map((point) => point.score), 1)
-  const width = 100
-  const height = 100
-  const points = series
-    .map((point, index) => {
-      const x = (index / Math.max(1, series.length - 1)) * width
-      const y = height - (point.score / maxScore) * height
-      return `${x},${y}`
-    })
-    .join(' ')
+  const chartData = series.map((point) => ({ round: `R${point.round}`, escalation: point.score }));
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3 h-32 w-full">
-      <polyline points={points} fill="none" stroke="#22d3ee" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      {series.map((point, index) => {
-        const x = (index / Math.max(1, series.length - 1)) * width
-        const y = height - (point.score / maxScore) * height
-        return <circle key={point.round} cx={x} cy={y} r={1.2} fill="#38bdf8" />
-      })}
-    </svg>
-  )
+    <ResponsiveContainer width="100%" height={200}>
+      <LineChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+        <XAxis dataKey="round" stroke="#94a3b8" fontSize={10} />
+        <YAxis stroke="#94a3b8" fontSize={10} />
+        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc' }} />
+        <Line type="monotone" dataKey="escalation" stroke="#ef4444" strokeWidth={2} dot={{ fill: '#ef4444' }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+function LeaderboardBarChart({ entries }: { entries: Array<{ nation_name: string; score: number; baseline: number }> }) {
+  const data = entries.map(e => ({
+    name: e.nation_name.length > 8 ? e.nation_name.slice(0, 8) + '\u2026' : e.nation_name,
+    score: e.score,
+    delta: e.score - e.baseline,
+  }));
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+        <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} angle={-30} textAnchor="end" height={60} />
+        <YAxis stroke="#94a3b8" fontSize={10} />
+        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc' }} />
+        <Bar dataKey="score" fill="#38bdf8" radius={[4, 4, 0, 0]}>
+          {data.map((entry, index) => (
+            <Cell key={index} fill={entry.delta >= 0 ? '#22c55e' : '#ef4444'} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
 }
 
 function formatTimerDisplay(timer: RoundTimer): string {

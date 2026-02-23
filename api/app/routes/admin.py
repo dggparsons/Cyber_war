@@ -7,10 +7,10 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from ..extensions import db
-from ..models import Round
+from ..models import Round, IntelDrop
 from ..services.round_manager import round_manager
 from ..services.resolution import resolve_round, lock_top_proposals
-from ..services.global_state import serialize_global_state, set_nuke_unlocked
+from ..services.global_state import serialize_global_state, set_nuke_unlocked, clear_doom_flag
 from ..services.crisis import crisis_history, inject_crisis, list_available_crises, clear_crisis_state
 from ..services.proposals import build_proposal_preview
 
@@ -141,3 +141,71 @@ def admin_inject_crisis():
 def admin_clear_crisis():
     clear_crisis_state()
     return jsonify(serialize_global_state())
+
+
+@admin_bp.post("/clear-doom")
+@login_required
+@admin_required
+def admin_clear_doom():
+    result = clear_doom_flag()
+    return jsonify(result)
+
+
+@admin_bp.post("/intel-drops")
+@login_required
+@admin_required
+def create_intel_drop():
+    payload = request.get_json(silent=True) or {}
+    required = ("round_id", "team_id", "puzzle_type", "clue", "solution")
+    missing = [f for f in required if not payload.get(f)]
+    if missing:
+        return jsonify({"error": "missing_fields", "fields": missing}), 400
+
+    import hashlib
+
+    drop = IntelDrop(
+        round_id=payload["round_id"],
+        team_id=payload["team_id"],
+        puzzle_type=payload["puzzle_type"],
+        clue=payload["clue"],
+        reward=payload.get("reward_type", "lifeline"),
+        solution_hash=hashlib.sha256(payload["solution"].encode()).hexdigest(),
+    )
+    db.session.add(drop)
+    db.session.commit()
+    return jsonify(
+        {
+            "id": drop.id,
+            "round_id": drop.round_id,
+            "team_id": drop.team_id,
+            "puzzle_type": drop.puzzle_type,
+            "clue": drop.clue,
+            "reward": drop.reward,
+            "solution_hash": drop.solution_hash,
+            "created_at": drop.created_at.isoformat() if drop.created_at else None,
+        }
+    ), 201
+
+
+@admin_bp.get("/intel-drops")
+@login_required
+@admin_required
+def list_intel_drops():
+    drops = IntelDrop.query.order_by(IntelDrop.id).all()
+    return jsonify(
+        [
+            {
+                "id": d.id,
+                "round_id": d.round_id,
+                "team_id": d.team_id,
+                "puzzle_type": d.puzzle_type,
+                "clue": d.clue,
+                "reward": d.reward,
+                "solution_hash": d.solution_hash,
+                "solved_by_team_id": d.solved_by_team_id,
+                "solved_at": d.solved_at.isoformat() if d.solved_at else None,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            }
+            for d in drops
+        ]
+    )

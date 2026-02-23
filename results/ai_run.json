@@ -1,0 +1,914 @@
+{
+  "meta": {
+    "rounds": 6,
+    "timestamp": 1771798644
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "leaderboard": {
+        "entries": [
+          {
+            "delta_from_baseline": -5,
+            "escalation": 0,
+            "nation_name": "UN PEACE COUNCIL",
+            "score": 315,
+            "team_id": 11
+          },
+          {
+            "delta_from_baseline": 0,
+            "escalation": 0,
+            "nation_name": "DAWNSHIELD",
+            "score": 275,
+            "team_id": 7
+          },
+          {
+            "delta_from_baseline": 0,
+            "escalation": 0,
+            "nation_name": "SKYWARD UNION",
+            "score": 275,
+            "team_id": 9
+          },
+          {
+            "delta_from_baseline": -12,
+            "escalation": 20,
+            "nation_name": "NEXUS",
+            "score": 258,
+            "team_id": 1
+          },
+          {
+            "delta_from_baseline": -6,
+            "escalation": 0,
+            "nation_name": "NEONHAVEN",
+            "score": 254,
+            "team_id": 8
+          },
+          {
+            "delta_from_baseline": -20,
+            "escalation": 24,
+            "nation_name": "FROSTBYTE",
+            "score": 240,
+            "team_id": 5
+          },
+          {
+            "delta_from_baseline": -19,
+            "escalation": 12,
+            "nation_name": "CORALHAVEN",
+            "score": 231,
+            "team_id": 4
+          },
+          {
+            "delta_from_baseline": -14,
+            "escalation": 0,
+            "nation_name": "LOTUS SANCTUM",
+            "score": 231,
+            "team_id": 10
+          },
+          {
+            "delta_from_baseline": -22,
+            "escalation": 24,
+            "nation_name": "GHOSTNET",
+            "score": 208,
+            "team_id": 3
+          },
+          {
+            "delta_from_baseline": -26,
+            "escalation": 24,
+            "nation_name": "IRONVEIL",
+            "score": 204,
+            "team_id": 2
+          },
+          {
+            "delta_from_baseline": 3,
+            "escalation": 0,
+            "nation_name": "SHADOWMERE",
+            "score": 188,
+            "team_id": 6
+          }
+        ],
+        "escalation_series": [
+          {
+            "round": 1,
+            "score": 10
+          },
+          {
+            "round": 2,
+            "score": 20
+          },
+          {
+            "round": 3,
+            "score": 30
+          },
+          {
+            "round": 4,
+            "score": 40
+          },
+          {
+            "round": 5,
+            "score": 50
+          },
+          {
+            "round": 6,
+            "score": 60
+          },
+          {
+            "round": 7,
+            "score": 70
+          },
+          {
+            "round": 8,
+            "score": 80
+          },
+          {
+            "round": 9,
+            "score": 90
+          },
+          {
+            "round": 10,
+            "score": 100
+          },
+          {
+            "round": 11,
+            "score": 110
+          }
+        ],
+        "global": {
+          "active_crisis": null,
+          "doom_message": null,
+          "doom_triggered": false,
+          "escalation_thresholds": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "last_crisis_at": null,
+          "nuke_unlocked": false,
+          "total_escalation": 104
+        },
+        "timer": {
+          "duration": 360,
+          "remaining": 360,
+          "round": 2,
+          "server_time": "2026-02-22T22:17:02.470619+00:00",
+          "state": "running"
+        }
+      }
+    },
+    {
+      "round": 2,
+      "leaderboard": {
+        "entries": [
+          {
+            "delta_from_baseline": -34,
+            "escalation": 28,
+            "nation_name": "UN PEACE COUNCIL",
+            "score": 286,
+            "team_id": 11
+          },
+          {
+            "delta_from_baseline": 3,
+            "escalation": 0,
+            "nation_name": "DAWNSHIELD",
+            "score": 278,
+            "team_id": 7
+          },
+          {
+            "delta_from_baseline": -28,
+            "escalation": 20,
+            "nation_name": "SKYWARD UNION",
+            "score": 247,
+            "team_id": 9
+          },
+          {
+            "delta_from_baseline": -22,
+            "escalation": 12,
+            "nation_name": "NEONHAVEN",
+            "score": 238,
+            "team_id": 8
+          },
+          {
+            "delta_from_baseline": -33,
+            "escalation": 36,
+            "nation_name": "NEXUS",
+            "score": 237,
+            "team_id": 1
+          },
+          {
+            "delta_from_baseline": -29,
+            "escalation": 40,
+            "nation_name": "FROSTBYTE",
+            "score": 231,
+            "team_id": 5
+          },
+          {
+            "delta_from_baseline": -27,
+            "escalation": 12,
+            "nation_name": "CORALHAVEN",
+            "score": 223,
+            "team_id": 4
+          },
+          {
+            "delta_from_baseline": -26,
+            "escalation": 28,
+            "nation_name": "GHOSTNET",
+            "score": 204,
+            "team_id": 3
+          },
+          {
+            "delta_from_baseline": -42,
+            "escalation": 32,
+            "nation_name": "LOTUS SANCTUM",
+            "score": 203,
+            "team_id": 10
+          },
+          {
+            "delta_from_baseline": -30,
+            "escalation": 32,
+            "nation_name": "IRONVEIL",
+            "score": 200,
+            "team_id": 2
+          },
+          {
+            "delta_from_baseline": 6,
+            "escalation": 0,
+            "nation_name": "SHADOWMERE",
+            "score": 191,
+            "team_id": 6
+          }
+        ],
+        "escalation_series": [
+          {
+            "round": 1,
+            "score": 10
+          },
+          {
+            "round": 2,
+            "score": 20
+          },
+          {
+            "round": 3,
+            "score": 30
+          },
+          {
+            "round": 4,
+            "score": 40
+          },
+          {
+            "round": 5,
+            "score": 50
+          },
+          {
+            "round": 6,
+            "score": 60
+          },
+          {
+            "round": 7,
+            "score": 70
+          },
+          {
+            "round": 8,
+            "score": 80
+          },
+          {
+            "round": 9,
+            "score": 90
+          },
+          {
+            "round": 10,
+            "score": 100
+          },
+          {
+            "round": 11,
+            "score": 110
+          }
+        ],
+        "global": {
+          "active_crisis": null,
+          "doom_message": null,
+          "doom_triggered": false,
+          "escalation_thresholds": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "last_crisis_at": null,
+          "nuke_unlocked": false,
+          "total_escalation": 240
+        },
+        "timer": {
+          "duration": 360,
+          "remaining": 360,
+          "round": 3,
+          "server_time": "2026-02-22T22:17:06.485511+00:00",
+          "state": "running"
+        }
+      }
+    },
+    {
+      "round": 3,
+      "leaderboard": {
+        "entries": [
+          {
+            "delta_from_baseline": -55,
+            "escalation": 52,
+            "nation_name": "UN PEACE COUNCIL",
+            "score": 265,
+            "team_id": 11
+          },
+          {
+            "delta_from_baseline": -15,
+            "escalation": 16,
+            "nation_name": "DAWNSHIELD",
+            "score": 260,
+            "team_id": 7
+          },
+          {
+            "delta_from_baseline": -42,
+            "escalation": 24,
+            "nation_name": "SKYWARD UNION",
+            "score": 233,
+            "team_id": 9
+          },
+          {
+            "delta_from_baseline": -41,
+            "escalation": 48,
+            "nation_name": "NEXUS",
+            "score": 229,
+            "team_id": 1
+          },
+          {
+            "delta_from_baseline": -32,
+            "escalation": 20,
+            "nation_name": "NEONHAVEN",
+            "score": 228,
+            "team_id": 8
+          },
+          {
+            "delta_from_baseline": -49,
+            "escalation": 64,
+            "nation_name": "FROSTBYTE",
+            "score": 211,
+            "team_id": 5
+          },
+          {
+            "delta_from_baseline": -46,
+            "escalation": 24,
+            "nation_name": "CORALHAVEN",
+            "score": 204,
+            "team_id": 4
+          },
+          {
+            "delta_from_baseline": -38,
+            "escalation": 40,
+            "nation_name": "GHOSTNET",
+            "score": 192,
+            "team_id": 3
+          },
+          {
+            "delta_from_baseline": -2,
+            "escalation": 16,
+            "nation_name": "SHADOWMERE",
+            "score": 183,
+            "team_id": 6
+          },
+          {
+            "delta_from_baseline": -63,
+            "escalation": 60,
+            "nation_name": "LOTUS SANCTUM",
+            "score": 182,
+            "team_id": 10
+          },
+          {
+            "delta_from_baseline": -54,
+            "escalation": 56,
+            "nation_name": "IRONVEIL",
+            "score": 176,
+            "team_id": 2
+          }
+        ],
+        "escalation_series": [
+          {
+            "round": 1,
+            "score": 10
+          },
+          {
+            "round": 2,
+            "score": 20
+          },
+          {
+            "round": 3,
+            "score": 30
+          },
+          {
+            "round": 4,
+            "score": 40
+          },
+          {
+            "round": 5,
+            "score": 50
+          },
+          {
+            "round": 6,
+            "score": 60
+          },
+          {
+            "round": 7,
+            "score": 70
+          },
+          {
+            "round": 8,
+            "score": 80
+          },
+          {
+            "round": 9,
+            "score": 90
+          },
+          {
+            "round": 10,
+            "score": 100
+          },
+          {
+            "round": 11,
+            "score": 110
+          }
+        ],
+        "global": {
+          "active_crisis": null,
+          "doom_message": null,
+          "doom_triggered": false,
+          "escalation_thresholds": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "last_crisis_at": null,
+          "nuke_unlocked": false,
+          "total_escalation": 420
+        },
+        "timer": {
+          "duration": 360,
+          "remaining": 360,
+          "round": 4,
+          "server_time": "2026-02-22T22:17:10.524635+00:00",
+          "state": "running"
+        }
+      }
+    },
+    {
+      "round": 4,
+      "leaderboard": {
+        "entries": [
+          {
+            "delta_from_baseline": -79,
+            "escalation": 80,
+            "nation_name": "UN PEACE COUNCIL",
+            "score": 241,
+            "team_id": 11
+          },
+          {
+            "delta_from_baseline": -44,
+            "escalation": 40,
+            "nation_name": "DAWNSHIELD",
+            "score": 231,
+            "team_id": 7
+          },
+          {
+            "delta_from_baseline": -45,
+            "escalation": 36,
+            "nation_name": "NEONHAVEN",
+            "score": 215,
+            "team_id": 8
+          },
+          {
+            "delta_from_baseline": -65,
+            "escalation": 36,
+            "nation_name": "SKYWARD UNION",
+            "score": 210,
+            "team_id": 9
+          },
+          {
+            "delta_from_baseline": -61,
+            "escalation": 80,
+            "nation_name": "NEXUS",
+            "score": 209,
+            "team_id": 1
+          },
+          {
+            "delta_from_baseline": -49,
+            "escalation": 24,
+            "nation_name": "CORALHAVEN",
+            "score": 201,
+            "team_id": 4
+          },
+          {
+            "delta_from_baseline": -75,
+            "escalation": 100,
+            "nation_name": "FROSTBYTE",
+            "score": 185,
+            "team_id": 5
+          },
+          {
+            "delta_from_baseline": -51,
+            "escalation": 56,
+            "nation_name": "GHOSTNET",
+            "score": 179,
+            "team_id": 3
+          },
+          {
+            "delta_from_baseline": -78,
+            "escalation": 80,
+            "nation_name": "LOTUS SANCTUM",
+            "score": 167,
+            "team_id": 10
+          },
+          {
+            "delta_from_baseline": -32,
+            "escalation": 20,
+            "nation_name": "SHADOWMERE",
+            "score": 153,
+            "team_id": 6
+          },
+          {
+            "delta_from_baseline": -87,
+            "escalation": 76,
+            "nation_name": "IRONVEIL",
+            "score": 143,
+            "team_id": 2
+          }
+        ],
+        "escalation_series": [
+          {
+            "round": 1,
+            "score": 10
+          },
+          {
+            "round": 2,
+            "score": 20
+          },
+          {
+            "round": 3,
+            "score": 30
+          },
+          {
+            "round": 4,
+            "score": 40
+          },
+          {
+            "round": 5,
+            "score": 50
+          },
+          {
+            "round": 6,
+            "score": 60
+          },
+          {
+            "round": 7,
+            "score": 70
+          },
+          {
+            "round": 8,
+            "score": 80
+          },
+          {
+            "round": 9,
+            "score": 90
+          },
+          {
+            "round": 10,
+            "score": 100
+          },
+          {
+            "round": 11,
+            "score": 110
+          }
+        ],
+        "global": {
+          "active_crisis": null,
+          "doom_message": null,
+          "doom_triggered": false,
+          "escalation_thresholds": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "last_crisis_at": null,
+          "nuke_unlocked": false,
+          "total_escalation": 628
+        },
+        "timer": {
+          "duration": 360,
+          "remaining": 360,
+          "round": 5,
+          "server_time": "2026-02-22T22:17:14.612834+00:00",
+          "state": "running"
+        }
+      }
+    },
+    {
+      "round": 5,
+      "leaderboard": {
+        "entries": [
+          {
+            "delta_from_baseline": -106,
+            "escalation": 116,
+            "nation_name": "UN PEACE COUNCIL",
+            "score": 214,
+            "team_id": 11
+          },
+          {
+            "delta_from_baseline": -65,
+            "escalation": 88,
+            "nation_name": "NEXUS",
+            "score": 205,
+            "team_id": 1
+          },
+          {
+            "delta_from_baseline": -71,
+            "escalation": 52,
+            "nation_name": "DAWNSHIELD",
+            "score": 204,
+            "team_id": 7
+          },
+          {
+            "delta_from_baseline": -53,
+            "escalation": 28,
+            "nation_name": "CORALHAVEN",
+            "score": 197,
+            "team_id": 4
+          },
+          {
+            "delta_from_baseline": -80,
+            "escalation": 44,
+            "nation_name": "SKYWARD UNION",
+            "score": 195,
+            "team_id": 9
+          },
+          {
+            "delta_from_baseline": -67,
+            "escalation": 48,
+            "nation_name": "NEONHAVEN",
+            "score": 193,
+            "team_id": 8
+          },
+          {
+            "delta_from_baseline": -88,
+            "escalation": 116,
+            "nation_name": "FROSTBYTE",
+            "score": 172,
+            "team_id": 5
+          },
+          {
+            "delta_from_baseline": -68,
+            "escalation": 76,
+            "nation_name": "GHOSTNET",
+            "score": 162,
+            "team_id": 3
+          },
+          {
+            "delta_from_baseline": -98,
+            "escalation": 100,
+            "nation_name": "LOTUS SANCTUM",
+            "score": 147,
+            "team_id": 10
+          },
+          {
+            "delta_from_baseline": -103,
+            "escalation": 96,
+            "nation_name": "IRONVEIL",
+            "score": 127,
+            "team_id": 2
+          },
+          {
+            "delta_from_baseline": -71,
+            "escalation": 56,
+            "nation_name": "SHADOWMERE",
+            "score": 114,
+            "team_id": 6
+          }
+        ],
+        "escalation_series": [
+          {
+            "round": 1,
+            "score": 10
+          },
+          {
+            "round": 2,
+            "score": 20
+          },
+          {
+            "round": 3,
+            "score": 30
+          },
+          {
+            "round": 4,
+            "score": 40
+          },
+          {
+            "round": 5,
+            "score": 50
+          },
+          {
+            "round": 6,
+            "score": 60
+          },
+          {
+            "round": 7,
+            "score": 70
+          },
+          {
+            "round": 8,
+            "score": 80
+          },
+          {
+            "round": 9,
+            "score": 90
+          },
+          {
+            "round": 10,
+            "score": 100
+          },
+          {
+            "round": 11,
+            "score": 110
+          }
+        ],
+        "global": {
+          "active_crisis": null,
+          "doom_message": null,
+          "doom_triggered": false,
+          "escalation_thresholds": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "last_crisis_at": null,
+          "nuke_unlocked": false,
+          "total_escalation": 820
+        },
+        "timer": {
+          "duration": 360,
+          "remaining": 360,
+          "round": 6,
+          "server_time": "2026-02-22T22:17:18.625271+00:00",
+          "state": "running"
+        }
+      }
+    },
+    {
+      "round": 6,
+      "leaderboard": {
+        "entries": [
+          {
+            "delta_from_baseline": -63,
+            "escalation": 92,
+            "nation_name": "NEXUS",
+            "score": 207,
+            "team_id": 1
+          },
+          {
+            "delta_from_baseline": -69,
+            "escalation": 40,
+            "nation_name": "CORALHAVEN",
+            "score": 181,
+            "team_id": 4
+          },
+          {
+            "delta_from_baseline": -97,
+            "escalation": 60,
+            "nation_name": "SKYWARD UNION",
+            "score": 178,
+            "team_id": 9
+          },
+          {
+            "delta_from_baseline": -99,
+            "escalation": 80,
+            "nation_name": "DAWNSHIELD",
+            "score": 176,
+            "team_id": 7
+          },
+          {
+            "delta_from_baseline": -85,
+            "escalation": 64,
+            "nation_name": "NEONHAVEN",
+            "score": 175,
+            "team_id": 8
+          },
+          {
+            "delta_from_baseline": -147,
+            "escalation": 144,
+            "nation_name": "UN PEACE COUNCIL",
+            "score": 173,
+            "team_id": 11
+          },
+          {
+            "delta_from_baseline": -107,
+            "escalation": 136,
+            "nation_name": "FROSTBYTE",
+            "score": 153,
+            "team_id": 5
+          },
+          {
+            "delta_from_baseline": -81,
+            "escalation": 88,
+            "nation_name": "GHOSTNET",
+            "score": 149,
+            "team_id": 3
+          },
+          {
+            "delta_from_baseline": -106,
+            "escalation": 116,
+            "nation_name": "LOTUS SANCTUM",
+            "score": 139,
+            "team_id": 10
+          },
+          {
+            "delta_from_baseline": -114,
+            "escalation": 108,
+            "nation_name": "IRONVEIL",
+            "score": 116,
+            "team_id": 2
+          },
+          {
+            "delta_from_baseline": -80,
+            "escalation": 72,
+            "nation_name": "SHADOWMERE",
+            "score": 105,
+            "team_id": 6
+          }
+        ],
+        "escalation_series": [
+          {
+            "round": 1,
+            "score": 10
+          },
+          {
+            "round": 2,
+            "score": 20
+          },
+          {
+            "round": 3,
+            "score": 30
+          },
+          {
+            "round": 4,
+            "score": 40
+          },
+          {
+            "round": 5,
+            "score": 50
+          },
+          {
+            "round": 6,
+            "score": 60
+          },
+          {
+            "round": 7,
+            "score": 70
+          },
+          {
+            "round": 8,
+            "score": 80
+          },
+          {
+            "round": 9,
+            "score": 90
+          },
+          {
+            "round": 10,
+            "score": 100
+          },
+          {
+            "round": 11,
+            "score": 110
+          }
+        ],
+        "global": {
+          "active_crisis": null,
+          "doom_message": null,
+          "doom_triggered": false,
+          "escalation_thresholds": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "last_crisis_at": null,
+          "nuke_unlocked": false,
+          "total_escalation": 1000
+        },
+        "timer": {
+          "duration": 360,
+          "remaining": 360,
+          "round": 7,
+          "server_time": "2026-02-22T22:17:23.628191+00:00",
+          "state": "running"
+        }
+      }
+    }
+  ]
+}

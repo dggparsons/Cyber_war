@@ -108,6 +108,6 @@ def send_message():
         "display_name": current_user.display_name,
         "sent_at": message.created_at.isoformat(),
     }
-    socketio.emit("diplomacy:message", payload, room=f"team:{channel.team_a_id}")
-    socketio.emit("diplomacy:message", payload, room=f"team:{channel.team_b_id}")
+    socketio.emit("diplomacy:message", payload, namespace="/team", room=f"team:{channel.team_a_id}")
+    socketio.emit("diplomacy:message", payload, namespace="/team", room=f"team:{channel.team_b_id}")
     return jsonify(payload)

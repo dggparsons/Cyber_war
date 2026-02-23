@@ -39,11 +39,13 @@ def seed():
         else:
             print("Rounds already exist; skipping")
 
-        ensure_admin()
+        ensure_admin(app)
 
 
-def ensure_admin():
-    admin_email = "admin@warroom.local"
+def ensure_admin(app):
+    admin_email = app.config["GM_USERNAME"]
+    admin_password = app.config["GM_PASSWORD"]
+
     existing = User.query.filter_by(email=admin_email).first()
     if existing:
         print("Admin account already exists")
@@ -52,12 +54,12 @@ def ensure_admin():
     admin = User(
         display_name="Game Master",
         email=admin_email,
-        password_hash=hash_password("ChangeMe123!"),
+        password_hash=hash_password(admin_password),
         role="admin",
     )
     db.session.add(admin)
     db.session.commit()
-    print(f"Created default admin account {admin_email} / ChangeMe123!")
+    print(f"Created default admin account {admin_email}")
 
 
 def main():

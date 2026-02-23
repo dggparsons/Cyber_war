@@ -5,10 +5,11 @@ import random
 
 from ..data.actions import ACTION_LOOKUP
 from ..extensions import db, socketio
-from ..models import Action, ActionProposal, ActionVote, Team, NewsEvent, Round, FalseFlagPlan
-from ..services.global_state import trigger_doom, get_global_state, check_escalation_thresholds
+from ..models import Action, ActionProposal, ActionVote, Team, NewsEvent, Round, FalseFlagPlan, OutcomeScoreHistory
+from ..services.global_state import trigger_doom, get_global_state, check_escalation_thresholds, set_nuke_unlocked
 from ..services.world_engine import generate_round_narrative
 from ..services.alliances import ensure_alliance, break_alliance
+from ..services.leaderboard import compute_outcome_scores
 
 
 def resolve_round(round_obj):
@@ -27,6 +28,26 @@ def resolve_round(round_obj):
     grouped = {}
     for proposal in proposals:
         grouped.setdefault((proposal.team_id, proposal.slot), []).append(proposal)
+
+    # Auto-fill empty proposal slots with WAIT actions
+    all_teams = Team.query.all()
+    for team in all_teams:
+        occupied_slots = {slot for (tid, slot) in grouped if tid == team.id}
+        for slot in range(1, 4):
+            if slot not in occupied_slots:
+                wait_proposal = ActionProposal(
+                    round_id=round_obj.id,
+                    team_id=team.id,
+                    proposer_user_id=0,
+                    slot=slot,
+                    action_code="WAIT",
+                    target_team_id=None,
+                    rationale="Auto-filled: no proposal submitted",
+                    status="locked",
+                )
+                db.session.add(wait_proposal)
+                db.session.flush()
+                grouped.setdefault((team.id, slot), []).append(wait_proposal)
 
     for (team_id, slot), items in grouped.items():
         locked_items = [item for item in items if item.status == "locked"]
@@ -91,6 +112,21 @@ def resolve_round(round_obj):
     db.session.add(round_obj)
     db.session.commit()
     check_escalation_thresholds(global_state)
+
+    # Store outcome score history for each team
+    scores = compute_outcome_scores()
+    for entry in scores:
+        record = OutcomeScoreHistory(
+            team_id=entry["team_id"],
+            round_id=round_obj.id,
+            outcome_score=entry["score"],
+        )
+        db.session.add(record)
+    db.session.commit()
+
+    # Push leaderboard update via Socket.IO
+    socketio.emit("leaderboard:update", scores, namespace="/global")
+
     return resolutions
 
 
@@ -150,13 +186,15 @@ def execute_action(proposal, action_def, actor: Team | None = None, target: Team
 
     success_chance = 0.6
     if actor and target:
-        success_chance += (actor.baseline_security - target.baseline_security) / 100
+        success_chance += (actor.current_security - target.current_security) / 100
     success_chance = max(0.2, min(0.9, success_chance))
     success = random.random() < success_chance
 
     if success:
         apply_effects(actor, target, action_def)
         actor.current_escalation += action_def.escalation
+        if action_def.code == "NUKE_LOCK":
+            set_nuke_unlocked(True)
         db.session.add(actor)
         if target:
             db.session.add(target)
