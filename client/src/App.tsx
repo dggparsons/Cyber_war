@@ -213,6 +213,7 @@ function App() {
   const [timerSeed, setTimerSeed] = useState<RoundTimer>({ round: 1, remaining: 0, duration: 360, state: 'idle' })
   const [isBriefingOpen, setIsBriefingOpen] = useState(false)
   const [isNationsOpen, setIsNationsOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
   const [diplomacyChannels, setDiplomacyChannels] = useState<any[]>([])
   const [diplomacyDrafts, setDiplomacyDrafts] = useState<Record<number, string>>({})
   const [diplomacyTarget, setDiplomacyTarget] = useState<number | ''>('')
@@ -812,12 +813,16 @@ function App() {
               <button className="rounded border border-warroom-amber/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-warroom-amber hover:border-warroom-amber" onClick={() => setIsNationsOpen(true)}>
                 Nations Intel
               </button>
+              <button className="rounded-full border border-slate-500 bg-warroom-blue/60 w-7 h-7 flex items-center justify-center text-sm font-bold text-slate-300 hover:border-warroom-cyan hover:text-warroom-cyan" onClick={() => setIsHelpOpen(true)} title="How to Play">
+                ?
+              </button>
             </div>
           </div>
         </div>
       </header>
       {isBriefingOpen && <BriefingModal briefing={data.briefing} onClose={() => setIsBriefingOpen(false)} />}
       {isNationsOpen && <NationsModal myTeamId={data.team.id} entries={leaderboard?.entries ?? []} alliances={data.alliances} diplomacyChannels={diplomacyChannels} onClose={() => setIsNationsOpen(false)} />}
+      {isHelpOpen && <HowToPlayModal onClose={() => setIsHelpOpen(false)} />}
 
       <main className="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[4fr_1fr]">
         <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 shadow-lg shadow-warroom-cyan/10 space-y-4">
@@ -1529,6 +1534,86 @@ function NationsModal({ myTeamId, entries, alliances, diplomacyChannels, onClose
           <span><span className="text-emerald-400">///</span> Allied</span>
           <span><span className="text-warroom-amber">///</span> In Contact</span>
           <span><span className="text-slate-500">///</span> Neutral</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HowToPlayModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-warroom-cyan/40 bg-slate-900/95 p-6 shadow-2xl shadow-warroom-cyan/20">
+        <div className="flex items-center justify-between">
+          <h2 className="font-pixel text-warroom-cyan">How to Play</h2>
+          <button className="text-xs uppercase text-slate-400 hover:text-warroom-cyan" onClick={onClose}>Close</button>
+        </div>
+
+        <div className="mt-4 space-y-5 text-sm text-slate-300">
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">The Scenario</h3>
+            <p className="mt-1">You are the decision-makers for a nation in an escalating global cyber conflict. Every round, your team picks actions that affect your nation and others. The goal: <span className="text-warroom-cyan font-semibold">protect your interests without triggering a catastrophic escalation that ends the game for everyone.</span></p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Rounds & Timer</h3>
+            <p className="mt-1">The game runs in timed rounds. When the timer is running, you can submit and vote on proposals. When it expires, the GM resolves all actions and advances to the next round. You have <span className="text-warroom-cyan">3 action slots</span> per round.</p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Action Slots & Proposals</h3>
+            <p className="mt-1">Each slot can hold one action. Any team member can propose an action for a slot. The team votes on proposals — the one with the most votes gets locked in when the round resolves.</p>
+            <p className="mt-1">If nobody proposes anything for a slot, it defaults to <span className="text-slate-100">WAIT</span> (do nothing).</p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Action Categories</h3>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-2"><span className="font-semibold" style={{color:'#22c55e'}}>De-escalation</span> — lower tensions, build trust</div>
+              <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-2"><span className="font-semibold" style={{color:'#f8fafc'}}>Status Quo</span> — wait, observe, do nothing</div>
+              <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-2"><span className="font-semibold" style={{color:'#eab308'}}>Posturing</span> — intelligence, sanctions, shows of force</div>
+              <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-2"><span className="font-semibold" style={{color:'#f97316'}}>Non-violent</span> — cyber attacks on infrastructure</div>
+              <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-2"><span className="font-semibold" style={{color:'#ef4444'}}>Violent</span> — destructive attacks with real damage</div>
+              <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-2"><span className="font-semibold" style={{color:'#a855f7'}}>Nuclear</span> — game-ending catastrophic strikes</div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Scoring</h3>
+            <p className="mt-1">Your <span className="text-warroom-cyan">Outcome Score</span> = Prosperity + Security + Influence - Escalation. Actions you take (and actions taken against you) shift these stats. The leaderboard ranks nations by score.</p>
+            <p className="mt-1">The <span className="text-warroom-cyan">Delta</span> shows how much your score has changed from your starting baseline — positive is good, negative means you're worse off.</p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Global Escalation & Doom</h3>
+            <p className="mt-1">Every aggressive action adds to a global escalation counter shared by all. When it crosses thresholds, warnings flash. If a nuclear action succeeds, <span className="text-red-400 font-semibold">the game ends immediately and everyone loses</span>. Watch the Doomsday Clock.</p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Diplomacy & Alliances</h3>
+            <p className="mt-1">Open diplomacy channels with other nations to negotiate. Form alliances for mutual benefit, or break them if trust collapses. Check <span className="text-warroom-amber">Nations Intel</span> to see who you're allied with and where everyone stands.</p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Intel Drops & Lifelines</h3>
+            <p className="mt-1"><span className="text-warroom-cyan">Intel Drops</span> are puzzles from the GM. Solve them to earn lifelines like <span className="text-warroom-amber">False Flags</span> (blame another nation for your action). Lifelines are limited — use them wisely.</p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Crises</h3>
+            <p className="mt-1">The GM can inject crises that change the rules mid-game. When a crisis hits, everyone sees it. Adapt your strategy or get caught off guard.</p>
+          </div>
+
+          <div className="rounded border border-warroom-cyan/30 bg-warroom-cyan/5 p-3">
+            <h3 className="font-pixel text-xs text-warroom-cyan">Key Tips</h3>
+            <ul className="mt-2 space-y-1 text-xs text-slate-300 list-disc pl-4">
+              <li>Coordinate with your team in <span className="text-warroom-cyan">Team Comms</span> before voting</li>
+              <li>Aggressive actions raise everyone's escalation — including yours</li>
+              <li>Diplomacy costs nothing and can prevent costly conflicts</li>
+              <li>Watch what other nations are doing via the news ticker and leaderboard</li>
+              <li>The best outcome is one where your nation thrives without ending the world</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
