@@ -14,14 +14,24 @@ def get_active_round() -> Round:
 
     # Promote first pending round to active.
     pending = Round.query.filter_by(status="pending").order_by(Round.round_number).first()
-    if not pending:
+    if pending:
+        pending.status = "active"
+        pending.started_at = datetime.utcnow()
+        db.session.add(pending)
+        db.session.commit()
+        return pending
+
+    if Round.query.count() == 0:
         pending = Round(round_number=1, status="active", started_at=datetime.utcnow())
         db.session.add(pending)
         db.session.commit()
         return pending
 
-    pending.status = "active"
-    pending.started_at = datetime.utcnow()
+    # No pending/active rounds remain; return the most recent resolved round.
+    fallback = Round.query.order_by(Round.round_number.desc()).first()
+    if fallback:
+        return fallback
+    pending = Round(round_number=1, status="active", started_at=datetime.utcnow())
     db.session.add(pending)
     db.session.commit()
     return pending

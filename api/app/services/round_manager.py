@@ -33,7 +33,13 @@ class RoundManager:
             return durations[idx] * 60
         return 360
 
-    def current_round(self) -> Round:
+    def _get_round_limit(self) -> int:
+        try:
+            return int(current_app.config.get("ROUND_COUNT", 6))
+        except RuntimeError:
+            return 6
+
+    def current_round(self) -> Round | None:
         round_obj = (
             Round.query.filter(Round.status == 'active')
             .order_by(Round.round_number)
@@ -61,37 +67,50 @@ class RoundManager:
             self._start_timer(round_obj)
             return round_obj
 
-        round_obj = Round(round_number=1, status='active', started_at=datetime.now(timezone.utc))
-        db.session.add(round_obj)
-        db.session.commit()
-        self.round_duration = self._get_duration_for_round(round_obj.round_number)
-        socketio.emit('round:started', {'round': round_obj.round_number}, namespace='/global')
-        self._start_timer(round_obj)
-        return round_obj
+        if Round.query.count() == 0:
+            round_obj = Round(round_number=1, status='active', started_at=datetime.now(timezone.utc))
+            db.session.add(round_obj)
+            db.session.commit()
+            self.round_duration = self._get_duration_for_round(round_obj.round_number)
+            socketio.emit('round:started', {'round': round_obj.round_number}, namespace='/global')
+            self._start_timer(round_obj)
+            return round_obj
+        return None
 
-    def advance_round(self) -> Round:
+    def advance_round(self) -> Round | None:
         round_obj = self.current_round()
+        if not round_obj:
+            return None
         round_obj.status = 'resolved'
         round_obj.ended_at = datetime.now(timezone.utc)
         db.session.add(round_obj)
 
+        round_limit = self._get_round_limit()
         next_round_number = round_obj.round_number + 1
-        next_round = Round.query.filter_by(round_number=next_round_number).first()
-        if not next_round:
-            next_round = Round(round_number=next_round_number, status='pending')
-            db.session.add(next_round)
-        next_round.status = 'active'
-        next_round.started_at = datetime.now(timezone.utc)
+        next_round: Round | None = None
+        if next_round_number <= round_limit:
+            next_round = Round.query.filter_by(round_number=next_round_number).first()
+            if not next_round:
+                next_round = Round(round_number=next_round_number, status='pending')
+                db.session.add(next_round)
+            next_round.status = 'active'
+            next_round.started_at = datetime.now(timezone.utc)
         db.session.commit()
 
         self._stop_timer()
-        self.round_duration = self._get_duration_for_round(next_round.round_number)
         socketio.emit('round:ended', {'round': round_obj.round_number}, namespace='/global')
+        if not next_round:
+            self._timer_state = "complete"
+            self._remaining = 0
+            self._active_round_id = None
+            return None
+
+        self.round_duration = self._get_duration_for_round(next_round.round_number)
         socketio.emit('round:started', {'round': next_round.round_number}, namespace='/global')
         self._start_timer(next_round)
         return next_round
 
-    def start_round(self) -> Round:
+    def start_round(self) -> Round | None:
         active = Round.query.filter(Round.status == 'active').first()
         if active:
             self._active_round_id = active.id
@@ -106,9 +125,12 @@ class RoundManager:
             .first()
         )
         if not round_obj:
-            round_obj = Round(round_number=1, status='pending')
-            db.session.add(round_obj)
-            db.session.commit()
+            if Round.query.count() == 0:
+                round_obj = Round(round_number=1, status='pending')
+                db.session.add(round_obj)
+                db.session.commit()
+            else:
+                return None
 
         round_obj.status = 'active'
         round_obj.started_at = datetime.now(timezone.utc)

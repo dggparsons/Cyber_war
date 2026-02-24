@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from functools import wraps
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_login import current_user, login_required
 
 from ..extensions import db
@@ -13,6 +13,7 @@ from ..services.resolution import resolve_round, lock_top_proposals
 from ..services.global_state import serialize_global_state, set_nuke_unlocked, clear_doom_flag
 from ..services.crisis import crisis_history, inject_crisis, list_available_crises, clear_crisis_state
 from ..services.proposals import build_proposal_preview
+from ..services.game_reset import reset_game_state
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -51,9 +52,13 @@ def rounds_overview():
 @admin_required
 def advance_round():
     active = round_manager.current_round()
+    if not active:
+        return jsonify({"error": "no_active_round"}), 400
     lock_top_proposals(active)
     resolve_round(active)
     new_round = round_manager.advance_round()
+    if not new_round:
+        return jsonify({"round": active.round_number, "status": "complete"})
     return jsonify({"round": new_round.round_number})
 
 
@@ -62,6 +67,8 @@ def advance_round():
 @admin_required
 def start_round():
     current = round_manager.start_round()
+    if not current:
+        return jsonify({"error": "no_pending_rounds"}), 400
     return jsonify({"round": current.round_number})
 
 
@@ -69,8 +76,8 @@ def start_round():
 @login_required
 @admin_required
 def reset_rounds():
-    Round.query.update({Round.status: "pending", Round.started_at: None, Round.ended_at: None})
-    db.session.commit()
+    round_count = int(current_app.config.get("ROUND_COUNT", 6))
+    reset_game_state(round_count)
     round_manager.reset_timer()
     return jsonify({"status": "reset"})
 
