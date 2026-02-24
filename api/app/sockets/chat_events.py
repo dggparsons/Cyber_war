@@ -25,6 +25,7 @@ def chat_message(data):
     payload = {
         "user_id": current_user.id,
         "display_name": current_user.display_name,
+        "role": current_user.role or "player",
         "content": (data.get("content") or "")[:500],
     }
     if not payload["content"]:
@@ -34,3 +35,16 @@ def chat_message(data):
     db.session.commit()
     chat_buffer.add(room, payload)
     emit("chat:message", payload, room=room, include_self=True)
+
+
+@socketio.on("chat:typing", namespace="/team")
+def chat_typing(data):
+    if not current_user.is_authenticated or not current_user.team_id:
+        return
+    room = f"team:{current_user.team_id}"
+    emit(
+        "chat:typing",
+        {"user_id": current_user.id, "display_name": current_user.display_name, "typing": bool(data.get("typing"))},
+        room=room,
+        include_self=False,
+    )

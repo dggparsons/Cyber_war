@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_login import current_user, login_required
 
 from ..extensions import db
-from ..models import Round, IntelDrop
+from ..models import Round, IntelDrop, MegaChallenge
 from ..services.round_manager import round_manager
 from ..services.resolution import resolve_round, lock_top_proposals
 from ..services.global_state import serialize_global_state, set_nuke_unlocked, clear_doom_flag
@@ -216,3 +216,40 @@ def list_intel_drops():
             for d in drops
         ]
     )
+
+
+@admin_bp.post("/mega-challenge")
+@login_required
+@admin_required
+def create_mega_challenge():
+    import hashlib
+
+    payload = request.get_json(silent=True) or {}
+    description = (payload.get("description") or "").strip()
+    solution = (payload.get("solution") or "").strip()
+    reward_tiers = payload.get("reward_tiers", [15, 10, 5])
+    if not description or not solution:
+        return jsonify({"error": "description_and_solution_required"}), 400
+    challenge = MegaChallenge(
+        description=description,
+        solution_hash=hashlib.sha256(solution.encode()).hexdigest(),
+        reward_tiers=reward_tiers,
+    )
+    db.session.add(challenge)
+    db.session.commit()
+    return jsonify({"id": challenge.id, "description": challenge.description}), 201
+
+
+@admin_bp.get("/mega-challenge")
+@login_required
+@admin_required
+def get_mega_challenge_admin():
+    challenge = MegaChallenge.query.first()
+    if not challenge:
+        return jsonify({"active": False})
+    return jsonify({
+        "active": True,
+        "id": challenge.id,
+        "description": challenge.description,
+        "reward_tiers": challenge.reward_tiers,
+    })

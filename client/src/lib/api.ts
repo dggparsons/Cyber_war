@@ -93,9 +93,18 @@ type GameStateResponse = {
   global: GlobalStatePayload
 }
 
+export type CyberImpactEntry = {
+  round: number
+  actor: string
+  target: string
+  action: string
+  success: boolean
+}
+
 export type LeaderboardResponse = {
   entries: Array<{ team_id: number; nation_name: string; score: number; delta_from_baseline: number; escalation: number }>
-  escalation_series: Array<{ round: number; score: number }>
+  escalation_series: Record<string, Array<{ round: number; score: number }>>
+  cyber_impact?: CyberImpactEntry[]
   timer: TimerPayload
   global?: GlobalStatePayload
 }
@@ -287,5 +296,39 @@ export async function vetoProposal(proposal_id: number, reason?: string) {
   return apiFetch('/api/game/proposals/veto', {
     method: 'POST',
     body: JSON.stringify({ proposal_id, reason }),
+  })
+}
+
+// Mega Challenge
+export type MegaChallengeData = {
+  active: boolean
+  id?: number
+  description?: string
+  reward_tiers?: number[]
+  solved_by?: Array<{ team_id: number; position: number; reward: number }>
+  already_solved?: boolean
+}
+
+export async function fetchMegaChallenge(): Promise<MegaChallengeData> {
+  return apiFetch('/api/game/mega-challenge', { method: 'GET' })
+}
+
+export async function solveMegaChallenge(answer: string) {
+  return apiFetch('/api/game/mega-challenge/solve', {
+    method: 'POST',
+    body: JSON.stringify({ answer }),
+  })
+}
+
+// Phone-a-Friend
+export async function usePhoneAFriend(): Promise<{ hint: { team_name: string; action_name: string; slot: number } }> {
+  return apiFetch('/api/game/lifelines/phone-a-friend', { method: 'POST' })
+}
+
+// Admin: Mega Challenge
+export async function adminCreateMegaChallenge(description: string, solution: string, reward_tiers?: number[]) {
+  return apiFetch('/api/admin/mega-challenge', {
+    method: 'POST',
+    body: JSON.stringify({ description, solution, reward_tiers }),
   })
 }

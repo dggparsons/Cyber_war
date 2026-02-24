@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 
 from ..data.actions import ACTIONS, ACTION_LOOKUP
 from ..extensions import db, socketio
-from ..models import ActionProposal, Team, IntelDrop, ActionVote, NewsEvent, Action, FalseFlagPlan
+from ..models import ActionProposal, Team, IntelDrop, ActionVote, NewsEvent, Action, FalseFlagPlan, MegaChallenge, MegaChallengeSolve, Lifeline, User
 from ..services.rounds import get_active_round, list_team_proposals
 from ..services.leaderboard import compute_outcome_scores
 from ..services.team_assignment import assign_team_for_user
@@ -209,9 +209,6 @@ def game_state():
 
     round_obj = get_active_round()
     proposals = list_team_proposals(current_user)
-    if not proposals:
-        pending = ActionProposal.query.filter_by(team_id=current_user.team_id, status='pending').count()
-        proposal_payload = []
     intel_items = IntelDrop.query.filter_by(team_id=current_user.team_id).all()
     if not intel_items:
         intel_payload = [
@@ -289,19 +286,60 @@ def game_state():
             "global": global_state_payload,
             "lifelines": list_lifelines(team.id),
             "alliances": list_alliances_for_team(team.id),
+            "roster": [
+                {"id": u.id, "display_name": u.display_name, "role": u.role, "is_captain": u.is_captain}
+                for u in User.query.filter_by(team_id=team.id).all()
+            ],
         }
     )
 
 
 @game_bp.get("/leaderboard")
 def leaderboard():
+    from ..models import OutcomeScoreHistory, Round
     entries = compute_outcome_scores()
+
+    # Build per-nation escalation history from OutcomeScoreHistory
+    rounds = Round.query.filter(Round.status == "resolved").order_by(Round.round_number).all()
+    escalation_by_nation: dict[str, list[dict]] = {}
+    for team in Team.query.all():
+        escalation_by_nation[team.nation_name] = []
+
+    for rd in rounds:
+        scores = OutcomeScoreHistory.query.filter_by(round_id=rd.id).all()
+        score_map = {s.team_id: s for s in scores}
+        for team in Team.query.all():
+            entry = score_map.get(team.id)
+            escalation_by_nation.setdefault(team.nation_name, []).append({
+                "round": rd.round_number,
+                "score": entry.outcome_score if entry else 0,
+            })
+
+    # Cyber Impact list — who attacked whom (from Action records)
+    attack_actions = (
+        Action.query
+        .filter(Action.target_team_id.isnot(None))
+        .order_by(Action.id.desc())
+        .limit(50)
+        .all()
+    )
+    cyber_impact = []
+    for a in attack_actions:
+        actor = Team.query.get(a.team_id)
+        target = Team.query.get(a.target_team_id)
+        cyber_impact.append({
+            "round": a.round_id,
+            "actor": actor.nation_name if actor else "Unknown",
+            "target": target.nation_name if target else "Unknown",
+            "action": a.action_code,
+            "success": a.success,
+        })
+
     return jsonify(
         {
             "entries": entries,
-            "escalation_series": [
-                {"round": i, "score": 10 * i} for i in range(1, 1 + len(entries))
-            ],
+            "escalation_series": escalation_by_nation,
+            "cyber_impact": cyber_impact,
             "timer": get_round_timer_payload(),
             "global": serialize_global_state(),
         }
@@ -539,6 +577,9 @@ def submit_proposal():
     if action_def.category == "nuclear" and not global_state.nuke_unlocked:
         return jsonify({"error": "nuclear_locked"}), 400
 
+    if target_team_id and int(target_team_id) == current_user.team_id:
+        return jsonify({"error": "cannot_target_self"}), 400
+
     round_obj = get_active_round()
     if not round_manager.submissions_open(round_obj):
         return jsonify({"error": "round_locked"}), 400
@@ -599,3 +640,139 @@ def cast_vote():
 
     total = sum(v.value for v in proposal.votes)
     return jsonify({"proposal_id": proposal_id, "total": total})
+
+
+# ---------------------------------------------------------------------------
+# Mega Challenge
+# ---------------------------------------------------------------------------
+
+@game_bp.get("/mega-challenge")
+@login_required
+def get_mega_challenge():
+    challenge = MegaChallenge.query.first()
+    if not challenge:
+        return jsonify({"active": False})
+
+    solves = (
+        MegaChallengeSolve.query
+        .filter_by(challenge_id=challenge.id)
+        .order_by(MegaChallengeSolve.solve_position)
+        .all()
+    )
+    solved_teams = [
+        {"team_id": s.team_id, "position": s.solve_position, "reward": s.reward_influence}
+        for s in solves
+    ]
+
+    return jsonify({
+        "active": True,
+        "id": challenge.id,
+        "description": challenge.description,
+        "reward_tiers": challenge.reward_tiers,
+        "solved_by": solved_teams,
+        "already_solved": any(s["team_id"] == current_user.team_id for s in solved_teams),
+    })
+
+
+@game_bp.post("/mega-challenge/solve")
+@login_required
+def solve_mega_challenge():
+    if not current_user.team_id:
+        return jsonify({"error": "team_required"}), 400
+
+    payload = request.get_json(silent=True) or {}
+    answer = (payload.get("answer") or "").strip()
+    if not answer:
+        return jsonify({"error": "answer_required"}), 400
+
+    challenge = MegaChallenge.query.first()
+    if not challenge:
+        return jsonify({"error": "no_active_challenge"}), 404
+
+    already = MegaChallengeSolve.query.filter_by(
+        challenge_id=challenge.id, team_id=current_user.team_id
+    ).first()
+    if already:
+        return jsonify({"error": "already_solved"}), 400
+
+    if not verify_password(challenge.solution_hash, answer):
+        return jsonify({"error": "incorrect_solution"}), 400
+
+    solve_count = MegaChallengeSolve.query.filter_by(challenge_id=challenge.id).count()
+    tiers = challenge.reward_tiers or [15, 10, 5]
+    reward = tiers[solve_count] if solve_count < len(tiers) else tiers[-1]
+
+    solve = MegaChallengeSolve(
+        challenge_id=challenge.id,
+        team_id=current_user.team_id,
+        solve_position=solve_count + 1,
+        reward_influence=reward,
+    )
+    db.session.add(solve)
+
+    team = Team.query.get(current_user.team_id)
+    if team:
+        team.current_influence += reward
+        db.session.add(team)
+
+    team_name = team.nation_name if team else "A team"
+    news = NewsEvent(message=f"{team_name} cracked the Mega Challenge! (+{reward} Influence)")
+    db.session.add(news)
+    db.session.commit()
+
+    socketio.emit("news:event", {
+        "id": news.id, "message": news.message,
+        "created_at": news.created_at.isoformat() if news.created_at else None,
+    }, namespace="/global")
+
+    return jsonify({
+        "solved": True,
+        "reward_influence": reward,
+        "solve_position": solve_count + 1,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Phone-a-Friend Lifeline
+# ---------------------------------------------------------------------------
+
+@game_bp.post("/lifelines/phone-a-friend")
+@login_required
+def use_phone_a_friend():
+    if not current_user.team_id:
+        return jsonify({"error": "team_required"}), 400
+
+    try:
+        lifeline = consume_lifeline(current_user.team_id, "phone_a_friend")
+    except ValueError:
+        db.session.rollback()
+        return jsonify({"error": "no_phone_a_friend_lifeline"}), 400
+
+    # Reveal one random enemy action from the current round
+    round_obj = get_active_round()
+    enemy_proposals = (
+        ActionProposal.query
+        .filter(
+            ActionProposal.round_id == round_obj.id,
+            ActionProposal.team_id != current_user.team_id,
+            ActionProposal.status.in_(["draft", "locked"]),
+        )
+        .all()
+    )
+
+    hint = None
+    if enemy_proposals:
+        import random as rng
+        pick = rng.choice(enemy_proposals)
+        enemy_team = Team.query.get(pick.team_id)
+        action_def = ACTION_LOOKUP.get(pick.action_code)
+        hint = {
+            "team_name": enemy_team.nation_name if enemy_team else "Unknown",
+            "action_name": action_def.name if action_def else pick.action_code,
+            "slot": pick.slot,
+        }
+    else:
+        hint = {"team_name": "N/A", "action_name": "No intel available", "slot": 0}
+
+    db.session.commit()
+    return jsonify({"hint": hint})

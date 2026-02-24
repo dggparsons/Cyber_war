@@ -10,7 +10,7 @@ from flask import Flask, g, request
 from flask_cors import CORS
 
 from .config import get_config
-from .extensions import db, login_manager, socketio
+from .extensions import db, limiter, login_manager, socketio
 from . import models  # noqa: F401  # ensure models are registered with SQLAlchemy
 from .sockets import *  # noqa: F401,F403  # register namespaces
 from .sockets import chat_events  # noqa: F401
@@ -64,11 +64,13 @@ def create_app(env_name: str | None = None) -> Flask:
 
 def _register_extensions(app: Flask) -> None:
     db.init_app(app)
+    limiter.init_app(app)
     login_manager.init_app(app)
 
     # Socket.IO initialisation happens last so it can read overridden CORS origins.
     cors_origins = app.config.get("CORS_ORIGINS", ["*"])
-    socketio.init_app(app, cors_allowed_origins=cors_origins, async_mode="threading")
+    async_mode = "eventlet" if app.config.get("ENV") == "production" else "threading"
+    socketio.init_app(app, cors_allowed_origins=cors_origins, async_mode=async_mode)
     CORS(
         app,
         supports_credentials=True,

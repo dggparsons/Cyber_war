@@ -9,7 +9,8 @@
       "Bash(head:*)",
       "Bash(npx tsc:*)",
       "Bash(echo EXIT: $?:*)",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(cd:*)"
     ]
   }
 }

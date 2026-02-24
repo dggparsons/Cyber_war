@@ -166,6 +166,16 @@ class MegaChallenge(db.Model, TimestampMixin):
     solved_at = db.Column(db.DateTime)
 
 
+class MegaChallengeSolve(db.Model, TimestampMixin):
+    __tablename__ = "mega_challenge_solves"
+
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("mega_challenge.id"), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
+    solve_position = db.Column(db.Integer, nullable=False)
+    reward_influence = db.Column(db.Integer, nullable=False)
+
+
 class DiplomacyChannel(db.Model, TimestampMixin):
     __tablename__ = "diplomacy_channels"
 

@@ -7,7 +7,7 @@ import uuid
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required, login_user, logout_user
 
-from ..extensions import db
+from ..extensions import db, limiter, socketio
 from ..models import User, Team
 from ..services.team_assignment import assign_team_for_user
 from ..utils.passwords import generate_random_password, hash_password, verify_password
@@ -30,6 +30,7 @@ TEAM_JOIN_CODES = {
 
 
 @auth_bp.post("/register")
+@limiter.limit("5 per minute")
 def register():
     payload = request.get_json(silent=True) or {}
     display_name = (payload.get("display_name") or "").strip()
@@ -69,6 +70,7 @@ def register():
 
 
 @auth_bp.post("/join")
+@limiter.limit("10 per minute")
 def join_with_code():
     payload = request.get_json(silent=True) or {}
     display_name = (payload.get("display_name") or "").strip()
@@ -115,6 +117,7 @@ def join_with_code():
 
 
 @auth_bp.post("/login")
+@limiter.limit("10 per minute")
 def login():
     if current_user.is_authenticated:
         return jsonify(_serialize_user(current_user)), 200
@@ -130,8 +133,16 @@ def login():
     if not user or not verify_password(user.password_hash, password):
         return jsonify({"error": "invalid credentials"}), 401
 
-    # Issue new session token and enforce single session logic (later to extend with Socket.IO).
+    # Issue new session token and kick any existing session via Socket.IO.
+    old_token = user.session_token
     user.session_token = secrets.token_hex(32)
+    if old_token:
+        socketio.emit(
+            "session:kick",
+            {"reason": "Logged in from another location."},
+            namespace="/team",
+            room=f"user:{user.id}",
+        )
 
     assigned_team = None
     if not user.team_id:
