@@ -159,6 +159,7 @@ class RoundManager:
 
     def reset_timer(self):
         self._stop_timer()
+        self._active_round_id = None
         self._timer_state = "idle"
         self._remaining = self.round_duration
 

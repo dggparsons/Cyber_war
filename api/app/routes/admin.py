@@ -6,7 +6,7 @@ from functools import wraps
 from flask import Blueprint, jsonify, request, current_app
 from flask_login import current_user, login_required
 
-from ..extensions import db
+from ..extensions import db, socketio
 from ..models import Round, IntelDrop, MegaChallenge
 from ..services.round_manager import round_manager
 from ..services.resolution import resolve_round, lock_top_proposals
@@ -79,6 +79,7 @@ def reset_rounds():
     round_count = int(current_app.config.get("ROUND_COUNT", 6))
     reset_game_state(round_count)
     round_manager.reset_timer()
+    socketio.emit("game:reset", {}, namespace="/global")
     return jsonify({"status": "reset"})
 
 

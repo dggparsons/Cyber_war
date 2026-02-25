@@ -317,12 +317,16 @@ function App() {
       setEscalationFlash(payload)
       playCue(260 + payload.threshold, 0.35)
     }
+    const resetHandler = () => {
+      loadGameState()
+    }
     socket.on('game:nuke_state', nukeHandler)
     socket.on('game:over', doomHandler)
     socket.on('crisis:injected', crisisHandler)
     socket.on('crisis:cleared', crisisClearedHandler)
     socket.on('news:event', newsHandler)
     socket.on('escalation:threshold', escalationHandler)
+    socket.on('game:reset', resetHandler)
     return () => {
       socket.off('game:nuke_state', nukeHandler)
       socket.off('game:over', doomHandler)
@@ -330,8 +334,9 @@ function App() {
       socket.off('crisis:cleared', crisisClearedHandler)
       socket.off('news:event', newsHandler)
       socket.off('escalation:threshold', escalationHandler)
+      socket.off('game:reset', resetHandler)
     }
-  }, [authRequired, playCue])
+  }, [authRequired, playCue, loadGameState])
 
   // Team socket events
   useEffect(() => {

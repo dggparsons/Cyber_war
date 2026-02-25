@@ -3,6 +3,12 @@ from __future__ import annotations
 
 import os
 
+# Eventlet monkey-patching must happen before any other imports when
+# running under gunicorn with the eventlet worker class.
+if os.environ.get("FLASK_ENV") == "production":
+    import eventlet
+    eventlet.monkey_patch()
+
 from app import create_app
 from app.extensions import socketio
 

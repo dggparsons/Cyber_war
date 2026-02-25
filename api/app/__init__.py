@@ -69,7 +69,8 @@ def _register_extensions(app: Flask) -> None:
 
     # Socket.IO initialisation happens last so it can read overridden CORS origins.
     cors_origins = app.config.get("CORS_ORIGINS", ["*"])
-    async_mode = "eventlet" if app.config.get("ENV") == "production" else "threading"
+    env = os.environ.get("FLASK_ENV", "development")
+    async_mode = "eventlet" if env == "production" else "threading"
     socketio.init_app(app, cors_allowed_origins=cors_origins, async_mode=async_mode)
     CORS(
         app,
@@ -79,13 +80,20 @@ def _register_extensions(app: Flask) -> None:
 
 
 def _configure_logging(app: Flask) -> None:
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
     log_dir = app.config.get("LOG_DIR") or os.path.join(app.instance_path, "logs")
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, "app.log")
-    if not any(isinstance(handler, RotatingFileHandler) and getattr(handler, "baseFilename", "") == log_file for handler in app.logger.handlers):
-        file_handler = RotatingFileHandler(log_file, maxBytes=1_000_000, backupCount=5)
-        formatter = logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
-        file_handler.setFormatter(formatter)
-        file_handler.setLevel(logging.INFO)
-        app.logger.addHandler(file_handler)
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "app.log")
+        if not any(isinstance(h, RotatingFileHandler) and getattr(h, "baseFilename", "") == log_file for h in app.logger.handlers):
+            file_handler = RotatingFileHandler(log_file, maxBytes=1_000_000, backupCount=5)
+            file_handler.setFormatter(formatter)
+            file_handler.setLevel(logging.INFO)
+            app.logger.addHandler(file_handler)
+    except OSError:
+        # Volume permissions not ready — fall back to stdout.
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        stream_handler.setLevel(logging.INFO)
+        app.logger.addHandler(stream_handler)
     app.logger.setLevel(logging.INFO)

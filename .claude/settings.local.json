@@ -10,7 +10,9 @@
       "Bash(npx tsc:*)",
       "Bash(echo EXIT: $?:*)",
       "Bash(sort:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(python3:*)",
+      "Bash(find:*)"
     ]
   }
 }
