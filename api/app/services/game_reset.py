@@ -21,8 +21,8 @@ from ..models import (
     OutcomeScoreHistory,
     Round,
     Team,
-    AiRoundScore,
-    AiRun,
+    User,
+    Waitlist,
 )
 
 
@@ -52,9 +52,9 @@ def reset_game_state(round_count: int):
             NewsEvent,
             OutcomeScoreHistory,
             CrisisEvent,
-            AiRoundScore,
-            AiRun,
             GlobalState,
+            # NOTE: AiRun and AiRoundScore are intentionally preserved across
+            # resets — the AI shadow simulation is independent of player data.
         ]
     )
     db.session.commit()
@@ -73,4 +73,15 @@ def reset_game_state(round_count: int):
     db.session.commit()
     for idx in range(1, round_count + 1):
         db.session.add(Round(round_number=idx, status="pending"))
+    db.session.commit()
+
+
+def full_reset(round_count: int):
+    """Full DB reset: wipe all game state AND remove non-admin player accounts."""
+    reset_game_state(round_count)
+    # Remove all non-admin/gm users and waitlist entries
+    _bulk_delete([Waitlist])
+    db.session.execute(
+        db.delete(User).where(User.role.notin_(["admin", "gm"]))
+    )
     db.session.commit()

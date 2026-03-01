@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 
 from ..data.actions import ACTIONS, ACTION_LOOKUP
 from ..extensions import db, socketio
-from ..models import ActionProposal, Team, IntelDrop, ActionVote, NewsEvent, Action, FalseFlagPlan, MegaChallenge, MegaChallengeSolve, Lifeline, User
+from ..models import ActionProposal, Team, IntelDrop, ActionVote, NewsEvent, Action, FalseFlagPlan, MegaChallenge, MegaChallengeSolve, Lifeline, User, Round
 from ..services.rounds import get_active_round, list_team_proposals
 from ..services.leaderboard import compute_outcome_scores
 from ..services.team_assignment import assign_team_for_user
@@ -23,10 +23,13 @@ game_bp = Blueprint("game", __name__, url_prefix="/api/game")
 
 
 def _lifeline_type_for_intel(intel: IntelDrop) -> str:
-    reward_text = (intel.reward or "").lower()
-    if "false flag" in reward_text:
+    reward = (intel.reward or "").strip().lower()
+    if reward in ("false_flag", "phone_a_friend"):
+        return reward
+    # Legacy text matching
+    if "false" in reward and "flag" in reward:
         return "false_flag"
-    if "phone" in reward_text or "friend" in reward_text:
+    if "phone" in reward or "friend" in reward:
         return "phone_a_friend"
     return "intel_hint"
 
@@ -197,6 +200,10 @@ BRIEFING_TEMPLATES = {
 @game_bp.get("/state")
 @login_required
 def game_state():
+    # Admin/GM users don't play — they manage the game from the admin panel
+    if current_user.role in ("admin", "gm"):
+        return jsonify({"error": "admin_use_gm_panel"}), 403
+
     if not current_user.team_id:
         assigned = assign_team_for_user(current_user)
         db.session.commit()
@@ -209,28 +216,27 @@ def game_state():
 
     round_obj = get_active_round()
     proposals = list_team_proposals(current_user)
-    intel_items = IntelDrop.query.filter_by(team_id=current_user.team_id).all()
-    if not intel_items:
-        intel_payload = [
-            {
-                "id": 0,
-                "title": "Cipher Cache",
-                "description": "Solve the Vigenère cipher in the PDF to unlock a False Flag token.",
-                "reward": "+10 Influence",
-                "status": "unsolved",
-            }
+    # Show intel drops up to and including the current round (one new per round)
+    if round_obj:
+        current_and_past_round_ids = [
+            r.id for r in Round.query.filter(Round.round_number <= round_obj.round_number).all()
         ]
+        intel_items = IntelDrop.query.filter(
+            IntelDrop.team_id == current_user.team_id,
+            IntelDrop.round_id.in_(current_and_past_round_ids),
+        ).all()
     else:
-        intel_payload = [
-            {
-                "id": intel.id,
-                "title": intel.puzzle_type,
-                "description": intel.clue,
-                "reward": intel.reward,
-                "status": "solved" if intel.solved_by_team_id else "unsolved",
-            }
-            for intel in intel_items
-        ]
+        intel_items = []
+    intel_payload = [
+        {
+            "id": intel.id,
+            "title": intel.puzzle_type,
+            "description": intel.clue,
+            "reward": intel.reward,
+            "status": "solved" if intel.solved_by_team_id else "unsolved",
+        }
+        for intel in intel_items
+    ]
 
     advisors = ADVISOR_PRESETS.get(team.nation_code, [])
     proposal_ids = [proposal.id for proposal in proposals]
@@ -271,7 +277,7 @@ def game_state():
             },
             "advisors": advisors,
             "timer_seconds": 6 * 60,
-            "action_slots": [{"slot": slot} for slot in (1, 2, 3)],
+            "action_slots": [{"slot": slot} for slot in (1,)],
             "round": {"id": round_obj.id, "number": round_obj.round_number},
             "proposals": proposal_payload,
             "chat_sample": [
@@ -371,7 +377,7 @@ def solve_intel():
         return jsonify({"error": "team_required"}), 400
     payload = request.get_json(silent=True) or {}
     intel_id = int(payload.get("intel_id") or 0)
-    answer = (payload.get("answer") or "").strip()
+    answer = (payload.get("answer") or "").strip().upper()
     if intel_id <= 0 or not answer:
         return jsonify({"error": "invalid_payload"}), 400
     intel = IntelDrop.query.get(intel_id)
@@ -386,7 +392,19 @@ def solve_intel():
     db.session.add(intel)
     lifeline_type = _lifeline_type_for_intel(intel)
     lifeline = award_lifeline(current_user.team_id, lifeline_type, awarded_for=f"intel:{intel.id}")
+    team = Team.query.get(current_user.team_id)
+    team_name = team.nation_name if team else "A team"
+    news = NewsEvent(message=f"{team_name} cracked an intel drop ({intel.puzzle_type}) and earned a {lifeline_type.replace('_', ' ')}!")
+    db.session.add(news)
     db.session.commit()
+    socketio.emit("news:event", {
+        "id": news.id, "message": news.message,
+        "created_at": news.created_at.isoformat() if news.created_at else None,
+    }, namespace="/global")
+    socketio.emit("news:event", {
+        "id": news.id, "message": news.message,
+        "created_at": news.created_at.isoformat() if news.created_at else None,
+    }, namespace="/team")
     return jsonify(
         {
             "intel_id": intel.id,
@@ -568,8 +586,8 @@ def submit_proposal():
     slot = int(payload.get("slot") or 0)
     target_team_id = payload.get("target_team_id")
 
-    if slot not in (1, 2, 3):
-        return jsonify({"error": "slot must be 1-3"}), 400
+    if slot not in (1,):
+        return jsonify({"error": "slot must be 1"}), 400
     if action_code not in ACTION_LOOKUP:
         return jsonify({"error": "unknown action"}), 400
 
@@ -681,7 +699,7 @@ def solve_mega_challenge():
         return jsonify({"error": "team_required"}), 400
 
     payload = request.get_json(silent=True) or {}
-    answer = (payload.get("answer") or "").strip()
+    answer = (payload.get("answer") or "").strip().upper()
     if not answer:
         return jsonify({"error": "answer_required"}), 400
 
@@ -735,6 +753,53 @@ def solve_mega_challenge():
 # ---------------------------------------------------------------------------
 # Phone-a-Friend Lifeline
 # ---------------------------------------------------------------------------
+
+@game_bp.post("/proposals/captain-override")
+@login_required
+def captain_override_proposal():
+    if not current_user.team_id:
+        return jsonify({"error": "team_required"}), 400
+    if not (current_user.is_captain or _current_user_is_gm()):
+        return jsonify({"error": "captain_only"}), 403
+    payload = request.get_json(silent=True) or {}
+    proposal_id = int(payload.get("proposal_id") or 0)
+    if proposal_id <= 0:
+        return jsonify({"error": "invalid_payload"}), 400
+    proposal = ActionProposal.query.get(proposal_id)
+    if not proposal or proposal.team_id != current_user.team_id:
+        return jsonify({"error": "proposal_not_found"}), 404
+    if proposal.status != "draft":
+        return jsonify({"error": "proposal_not_draft"}), 400
+    # Lock this proposal and close all other drafts for the same slot
+    siblings = ActionProposal.query.filter(
+        ActionProposal.round_id == proposal.round_id,
+        ActionProposal.team_id == proposal.team_id,
+        ActionProposal.slot == proposal.slot,
+        ActionProposal.id != proposal.id,
+    ).all()
+    for sib in siblings:
+        if sib.status == "draft":
+            sib.status = "closed"
+    proposal.status = "locked"
+    db.session.commit()
+    payload_out = {
+        "team_id": proposal.team_id,
+        "round_id": proposal.round_id,
+        "proposals": [
+            {
+                "id": p.id,
+                "slot": p.slot,
+                "action_code": p.action_code,
+                "status": p.status,
+                "target_team_id": p.target_team_id,
+                "votes": [{"user_id": v.voter_user_id, "value": v.value} for v in p.votes],
+            }
+            for p in ActionProposal.query.filter_by(round_id=proposal.round_id, team_id=proposal.team_id).all()
+        ],
+    }
+    socketio.emit("proposals:auto_locked", payload_out, namespace="/team", room=f"team:{proposal.team_id}")
+    return jsonify({"status": "locked", "proposal_id": proposal.id})
+
 
 @game_bp.post("/lifelines/phone-a-friend")
 @login_required

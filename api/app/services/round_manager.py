@@ -8,8 +8,9 @@ import time
 from flask import current_app
 
 from ..extensions import db, socketio
-from ..models import Round
+from ..models import Round, IntelDrop, Team
 from .resolution import lock_top_proposals
+from .intel_generator import generate_intel_for_round
 
 TimerState = Literal["idle", "running", "paused", "complete"]
 
@@ -62,6 +63,7 @@ class RoundManager:
             round_obj.started_at = datetime.now(timezone.utc)
             db.session.add(round_obj)
             db.session.commit()
+            generate_intel_for_round(round_obj.id)
             self.round_duration = self._get_duration_for_round(round_obj.round_number)
             socketio.emit('round:started', {'round': round_obj.round_number}, namespace='/global')
             self._start_timer(round_obj)
@@ -71,6 +73,7 @@ class RoundManager:
             round_obj = Round(round_number=1, status='active', started_at=datetime.now(timezone.utc))
             db.session.add(round_obj)
             db.session.commit()
+            generate_intel_for_round(round_obj.id)
             self.round_duration = self._get_duration_for_round(round_obj.round_number)
             socketio.emit('round:started', {'round': round_obj.round_number}, namespace='/global')
             self._start_timer(round_obj)
@@ -105,6 +108,7 @@ class RoundManager:
             self._active_round_id = None
             return None
 
+        generate_intel_for_round(next_round.id)
         self.round_duration = self._get_duration_for_round(next_round.round_number)
         socketio.emit('round:started', {'round': next_round.round_number}, namespace='/global')
         self._start_timer(next_round)
@@ -136,6 +140,7 @@ class RoundManager:
         round_obj.started_at = datetime.now(timezone.utc)
         db.session.add(round_obj)
         db.session.commit()
+        generate_intel_for_round(round_obj.id)
         self.round_duration = self._get_duration_for_round(round_obj.round_number)
         socketio.emit('round:started', {'round': round_obj.round_number}, namespace='/global')
         self._start_timer(round_obj)

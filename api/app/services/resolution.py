@@ -33,7 +33,7 @@ def resolve_round(round_obj):
     all_teams = Team.query.all()
     for team in all_teams:
         occupied_slots = {slot for (tid, slot) in grouped if tid == team.id}
-        for slot in range(1, 4):
+        for slot in range(1, 2):
             if slot not in occupied_slots:
                 wait_proposal = ActionProposal(
                     round_id=round_obj.id,

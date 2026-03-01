@@ -1,4 +1,9 @@
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { GameState } from '../lib/gameUtils'
+import type { MegaChallengeData } from '../lib/api'
+
+export type IntelDropItem = { id: number; title: string; description: string; reward: string; status: string }
 
 export function BriefingModal({ briefing, onClose }: { briefing: GameState['briefing']; onClose: () => void }) {
   return (
@@ -138,13 +143,13 @@ export function HowToPlayModal({ onClose }: { onClose: () => void }) {
 
           <div>
             <h3 className="font-pixel text-xs text-warroom-amber">Rounds & Timer</h3>
-            <p className="mt-1">The game runs in timed rounds. When the timer is running, you can submit and vote on proposals. When it expires, the GM resolves all actions and advances to the next round. You have <span className="text-warroom-cyan">3 action slots</span> per round.</p>
+            <p className="mt-1">The game runs in timed rounds. When the timer is running, you can submit and vote on proposals. When it expires, the GM resolves all actions and advances to the next round. You have <span className="text-warroom-cyan">1 action slot</span> per round.</p>
           </div>
 
           <div>
-            <h3 className="font-pixel text-xs text-warroom-amber">Action Slots & Proposals</h3>
-            <p className="mt-1">Each slot can hold one action. Any team member can propose an action for a slot. The team votes on proposals — the one with the most votes gets locked in when the round resolves.</p>
-            <p className="mt-1">If nobody proposes anything for a slot, it defaults to <span className="text-slate-100">WAIT</span> (do nothing).</p>
+            <h3 className="font-pixel text-xs text-warroom-amber">Actions & Proposals</h3>
+            <p className="mt-1">Each round your team picks one action. Any team member can propose an action. The team votes on proposals — the one with the most votes gets locked in when the round resolves.</p>
+            <p className="mt-1">If nobody proposes anything, it defaults to <span className="text-slate-100">WAIT</span> (do nothing).</p>
           </div>
 
           <div>
@@ -196,6 +201,165 @@ export function HowToPlayModal({ onClose }: { onClose: () => void }) {
             </ul>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+export function IntelModal({ intel, answer, onAnswerChange, onSubmit, onClose }: {
+  intel: IntelDropItem
+  answer: string
+  onAnswerChange: (v: string) => void
+  onSubmit: () => void
+  onClose: () => void
+}) {
+  const isSolved = intel.status === 'solved'
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-warroom-cyan/40 bg-slate-900/95 p-6 shadow-2xl shadow-warroom-cyan/20">
+        <div className="flex items-center justify-between">
+          <h2 className="font-pixel text-warroom-cyan">{intel.title}</h2>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs uppercase tracking-widest font-semibold ${isSolved ? 'text-emerald-400' : 'text-warroom-amber'}`}>
+              {intel.status}
+            </span>
+            <button className="text-xs uppercase text-slate-400 hover:text-warroom-cyan" onClick={onClose}>Close</button>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded border border-slate-700/60 bg-warroom-blue/30 p-4">
+          <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">Puzzle</p>
+          <pre className="whitespace-pre-wrap font-mono text-sm text-slate-200 leading-relaxed">{intel.description}</pre>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 text-sm">
+          <span className="text-xs uppercase tracking-widest text-slate-500">Reward:</span>
+          <span className="text-warroom-cyan font-semibold">{intel.reward}</span>
+        </div>
+
+        {isSolved ? (
+          <div className="mt-4 rounded border border-emerald-500/40 bg-emerald-900/20 p-3 text-center">
+            <p className="text-emerald-400 font-semibold">Puzzle Solved</p>
+            <p className="text-xs text-slate-400 mt-1">Reward has been applied to your team.</p>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <label className="text-xs uppercase tracking-widest text-slate-500">Your Answer</label>
+            <div className="mt-2 flex gap-2">
+              <input
+                className="flex-1 rounded border border-slate-700 bg-warroom-blue/60 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-warroom-cyan/60 focus:outline-none"
+                placeholder="Enter solution..."
+                value={answer}
+                onChange={(e) => onAnswerChange(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && answer) onSubmit() }}
+              />
+              <button
+                className="rounded border border-warroom-cyan/40 bg-warroom-cyan/10 px-4 py-2 text-xs uppercase tracking-widest text-warroom-cyan hover:bg-warroom-cyan/20"
+                onClick={onSubmit}
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function MegaChallengeModal({ challenge, answer, onAnswerChange, onSubmit, onClose }: {
+  challenge: MegaChallengeData
+  answer: string
+  onAnswerChange: (v: string) => void
+  onSubmit: () => void
+  onClose: () => void
+}) {
+  const tiers = challenge.reward_tiers ?? [15, 10, 5]
+  const ordinal = (n: number) => n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-purple-500/40 bg-slate-900/95 p-6 shadow-2xl shadow-purple-500/20">
+        <div className="flex items-center justify-between">
+          <h2 className="font-pixel text-purple-400">Mega Challenge</h2>
+          <button className="text-xs uppercase text-slate-400 hover:text-purple-400" onClick={onClose}>Close</button>
+        </div>
+
+        <div className="mt-2 flex gap-3 text-[10px] uppercase tracking-widest text-slate-500">
+          {tiers.map((r, i) => (
+            <span key={i} className="rounded border border-purple-500/30 bg-purple-900/20 px-2 py-0.5 text-purple-300">
+              {ordinal(i + 1)} place: +{r} Influence
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded border border-slate-700/60 bg-warroom-blue/30 p-5 mega-markdown">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h2: ({ children }) => <h2 className="font-pixel text-base text-red-400 mt-6 mb-3 first:mt-0">{children}</h2>,
+              h3: ({ children }) => <h3 className="font-pixel text-sm text-purple-400 mt-5 mb-2 border-b border-slate-700/50 pb-1">{children}</h3>,
+              p: ({ children }) => <p className="text-sm text-slate-200 leading-relaxed mb-3">{children}</p>,
+              strong: ({ children }) => <strong className="text-warroom-amber font-semibold">{children}</strong>,
+              em: ({ children }) => <em className="text-slate-400 italic">{children}</em>,
+              code: ({ className, children }) => {
+                const isBlock = className?.includes('language-') || String(children).includes('\n')
+                return isBlock
+                  ? <code className="block bg-black/50 border border-slate-700/60 rounded p-3 my-3 text-xs font-mono text-emerald-300 whitespace-pre overflow-x-auto leading-relaxed">{children}</code>
+                  : <code className="bg-black/40 border border-slate-700/40 rounded px-1.5 py-0.5 text-xs font-mono text-emerald-300">{children}</code>
+              },
+              pre: ({ children }) => <div className="my-2">{children}</div>,
+              blockquote: ({ children }) => <blockquote className="border-l-2 border-purple-500/60 pl-4 my-3 text-sm text-slate-300 bg-purple-900/10 py-2 rounded-r">{children}</blockquote>,
+              hr: () => <hr className="border-slate-700/50 my-5" />,
+              ul: ({ children }) => <ul className="list-disc list-inside space-y-1 text-sm text-slate-300 mb-3">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 text-sm text-slate-300 mb-3">{children}</ol>,
+              table: ({ children }) => <table className="w-full text-sm text-slate-300 my-3 border border-slate-700/50">{children}</table>,
+              thead: ({ children }) => <thead className="bg-slate-800/60 text-xs uppercase text-slate-400">{children}</thead>,
+              th: ({ children }) => <th className="border border-slate-700/50 px-3 py-1.5 text-left">{children}</th>,
+              td: ({ children }) => <td className="border border-slate-700/50 px-3 py-1.5">{children}</td>,
+            }}
+          >
+            {challenge.description}
+          </ReactMarkdown>
+        </div>
+
+        {challenge.solved_by && challenge.solved_by.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">Solved By</p>
+            <div className="flex flex-wrap gap-2">
+              {challenge.solved_by.map((s) => (
+                <span key={s.team_id} className="rounded border border-emerald-500/30 bg-emerald-900/20 px-3 py-1 text-xs text-emerald-400">
+                  #{s.position} — Team {s.team_id} (+{s.reward})
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {challenge.already_solved ? (
+          <div className="mt-4 rounded border border-emerald-500/40 bg-emerald-900/20 p-3 text-center">
+            <p className="text-emerald-400 font-semibold">Your team has solved this challenge!</p>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <label className="text-xs uppercase tracking-widest text-slate-500">Your Answer</label>
+            <div className="mt-2 flex gap-2">
+              <input
+                className="flex-1 rounded border border-slate-700 bg-warroom-blue/60 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-purple-400/60 focus:outline-none"
+                placeholder="Enter solution..."
+                value={answer}
+                onChange={(e) => onAnswerChange(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && answer) onSubmit() }}
+              />
+              <button
+                className="rounded border border-purple-400/40 bg-purple-400/10 px-4 py-2 text-xs uppercase tracking-widest text-purple-400 hover:bg-purple-400/20"
+                onClick={onSubmit}
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

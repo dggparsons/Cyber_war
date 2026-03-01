@@ -182,7 +182,8 @@ class DiplomacyChannel(db.Model, TimestampMixin):
     id = db.Column(db.Integer, primary_key=True)
     team_a_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
     team_b_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
-    status = db.Column(db.String(16), default="open")
+    initiated_by = db.Column(db.Integer, db.ForeignKey("teams.id"))
+    status = db.Column(db.String(16), default="pending")
 
 
 class NewsEvent(db.Model, TimestampMixin):
@@ -255,6 +256,9 @@ class AiRun(db.Model, TimestampMixin):
     id = db.Column(db.Integer, primary_key=True)
     model_name = db.Column(db.String(64), nullable=False)
     scenario = db.Column(db.String(64), default="conference_default")
+    final_escalation = db.Column(db.Integer)
+    doom_triggered = db.Column(db.Boolean, default=False)
+    completed_at = db.Column(db.DateTime)
 
 
 class AiRoundScore(db.Model, TimestampMixin):
@@ -265,3 +269,8 @@ class AiRoundScore(db.Model, TimestampMixin):
     round_number = db.Column(db.Integer, nullable=False)
     escalation_score = db.Column(db.Integer, nullable=False)
     outcome_score = db.Column(db.Integer, nullable=False)
+    nation_code = db.Column(db.String(16))
+    action_code = db.Column(db.String(64))
+    target_nation_code = db.Column(db.String(16))
+    success = db.Column(db.Boolean)
+    reasoning = db.Column(db.Text)

@@ -23,30 +23,54 @@ ACTION_PROPOSAL_COLUMNS = [
     ("vetoed_reason", "TEXT"),
 ]
 
+AI_RUN_COLUMNS = [
+    ("final_escalation", "INTEGER"),
+    ("doom_triggered", "BOOLEAN DEFAULT 0"),
+    ("completed_at", "DATETIME"),
+]
+
+AI_ROUND_SCORE_COLUMNS = [
+    ("nation_code", "VARCHAR(16)"),
+    ("action_code", "VARCHAR(64)"),
+    ("target_nation_code", "VARCHAR(16)"),
+    ("success", "BOOLEAN"),
+    ("reasoning", "TEXT"),
+]
+
+DIPLOMACY_CHANNEL_COLUMNS = [
+    ("initiated_by", "INTEGER"),
+]
+
+
+def _ensure_columns(table_name: str, columns: list[tuple[str, str]]):
+    inspector = inspect(db.engine)
+    existing = {col['name'] for col in inspector.get_columns(table_name)}
+    for column_name, column_def in columns:
+        if column_name not in existing:
+            db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}"))
+    db.session.commit()
+
 
 def ensure_team_columns():
     db.create_all()
-    inspector = inspect(db.engine)
-    existing = {col['name'] for col in inspector.get_columns('teams')}
-    for column_name, column_def in TEAM_DYNAMIC_COLUMNS:
-        if column_name not in existing:
-            db.session.execute(text(f"ALTER TABLE teams ADD COLUMN {column_name} {column_def}"))
-    db.session.commit()
+    _ensure_columns('teams', TEAM_DYNAMIC_COLUMNS)
 
 
 def ensure_global_state_columns():
-    inspector = inspect(db.engine)
-    existing = {col['name'] for col in inspector.get_columns('global_state')}
-    for column_name, column_def in GLOBAL_STATE_COLUMNS:
-        if column_name not in existing:
-            db.session.execute(text(f"ALTER TABLE global_state ADD COLUMN {column_name} {column_def}"))
-    db.session.commit()
+    _ensure_columns('global_state', GLOBAL_STATE_COLUMNS)
 
 
 def ensure_action_proposal_columns():
-    inspector = inspect(db.engine)
-    existing = {col['name'] for col in inspector.get_columns('action_proposals')}
-    for column_name, column_def in ACTION_PROPOSAL_COLUMNS:
-        if column_name not in existing:
-            db.session.execute(text(f"ALTER TABLE action_proposals ADD COLUMN {column_name} {column_def}"))
-    db.session.commit()
+    _ensure_columns('action_proposals', ACTION_PROPOSAL_COLUMNS)
+
+
+def ensure_ai_run_columns():
+    _ensure_columns('ai_runs', AI_RUN_COLUMNS)
+
+
+def ensure_ai_round_score_columns():
+    _ensure_columns('ai_round_scores', AI_ROUND_SCORE_COLUMNS)
+
+
+def ensure_diplomacy_columns():
+    _ensure_columns('diplomacy_channels', DIPLOMACY_CHANNEL_COLUMNS)

@@ -18,11 +18,11 @@
 }
 
 .animate-marquee.slow {
-  animation-duration: 40s;
+  animation-duration: 90s;
 }
 
 .animate-marquee.xslow {
-  animation-duration: 40s;
+  animation-duration: 120s;
 }
 
 /* CRT scanline overlay */

@@ -2,7 +2,7 @@ import type { RoundTimer } from '../hooks/useRoundTimer'
 import type { GlobalStatePayload } from './api'
 export type { GlobalStatePayload } from './api'
 
-export const SLOT_IDS = [1, 2, 3]
+export const SLOT_IDS = [1]
 
 export const DEFAULT_GLOBAL_STATE: GlobalStatePayload = {
   nuke_unlocked: false,

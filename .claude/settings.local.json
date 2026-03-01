@@ -12,7 +12,16 @@
       "Bash(sort:*)",
       "Bash(cd:*)",
       "Bash(python3:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx vite:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(pip install:*)",
+      "Bash(which python && which pip && python --version && python -c \"import flask_limiter; print\\(flask_limiter.__file__\\)\" 2>&1)",
+      "Bash(python:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker compose:*)",
+      "WebSearch"
     ]
   }
 }

@@ -119,8 +119,27 @@ export type ActionDefinition = {
 }
 
 export type RevealData = {
-  ai_models: Array<{ model_name: string; first_violent_round: number; launched_nukes: boolean; avg_escalation: number }>
+  ai_models: Array<{
+    model_name: string
+    nation_code?: string
+    first_violent_round: number | null
+    launched_nukes: boolean
+    avg_escalation: number
+    reasoning_excerpts?: Array<{ round: number; action: string; reasoning: string }>
+  }>
   human_vs_ai: { human_outcome: number; ai_outcome: number; rounds?: number }
+  human_escalation_series?: Array<{ round: number; avg_outcome: number }>
+  ai_escalation_series?: Record<string, Array<{ round: number; escalation: number; outcome: number }>>
+  ai_avg_by_round?: Array<{ round: number; avg_escalation: number; avg_outcome: number }>
+  ai_decisions?: Array<{ round: number; nation_code: string; action_code: string; target?: string; success: boolean; reasoning?: string }>
+  ai_run?: { id: number; model_name: string; final_escalation?: number; doom_triggered?: boolean; completed_at?: string }
+}
+
+export async function captainOverride(proposal_id: number): Promise<any> {
+  return apiFetch('/api/game/proposals/captain-override', {
+    method: 'POST',
+    body: JSON.stringify({ proposal_id }),
+  })
 }
 
 export type HistoryEntry = {
@@ -152,7 +171,13 @@ export async function fetchGameState(): Promise<GameStateResponse> {
   return apiFetch('/api/game/state', { method: 'GET' })
 }
 
-export async function fetchSession(): Promise<{ authenticated: boolean }> {
+export type SessionResponse = {
+  authenticated: boolean
+  user?: { id: number; display_name: string; email: string; team_id: number | null; role: string; is_captain: boolean }
+  session_token?: string
+}
+
+export async function fetchSession(): Promise<SessionResponse> {
   return apiFetch('/api/auth/me', { method: 'GET' })
 }
 export async function fetchLeaderboard(): Promise<LeaderboardResponse> {
@@ -248,6 +273,10 @@ export async function adminClearCrisis() {
   return apiFetch('/api/admin/crisis/clear', { method: 'POST' })
 }
 
+export async function adminFullReset() {
+  return apiFetch('/api/admin/full-reset', { method: 'POST' })
+}
+
 export async function fetchDiplomacyChannels() {
   return apiFetch('/api/diplomacy/', { method: 'GET' })
 }
@@ -263,6 +292,13 @@ export async function sendDiplomacyMessage(channel_id: number, content: string) 
   return apiFetch('/api/diplomacy/send', {
     method: 'POST',
     body: JSON.stringify({ channel_id, content }),
+  })
+}
+
+export async function respondDiplomacy(channel_id: number, action: 'accept' | 'decline') {
+  return apiFetch('/api/diplomacy/respond', {
+    method: 'POST',
+    body: JSON.stringify({ channel_id, action }),
   })
 }
 

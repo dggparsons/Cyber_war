@@ -7,13 +7,14 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_login import current_user, login_required
 
 from ..extensions import db, socketio
-from ..models import Round, IntelDrop, MegaChallenge
+from ..models import Round, IntelDrop, MegaChallenge, Team, User
+from ..utils.passwords import hash_password
 from ..services.round_manager import round_manager
 from ..services.resolution import resolve_round, lock_top_proposals
 from ..services.global_state import serialize_global_state, set_nuke_unlocked, clear_doom_flag
 from ..services.crisis import crisis_history, inject_crisis, list_available_crises, clear_crisis_state
 from ..services.proposals import build_proposal_preview
-from ..services.game_reset import reset_game_state
+from ..services.game_reset import reset_game_state, full_reset
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -83,6 +84,18 @@ def reset_rounds():
     return jsonify({"status": "reset"})
 
 
+@admin_bp.post("/full-reset")
+@login_required
+@admin_required
+def admin_full_reset():
+    """Full reset: wipe all game state AND remove non-admin player accounts."""
+    round_count = int(current_app.config.get("ROUND_COUNT", 6))
+    full_reset(round_count)
+    round_manager.reset_timer()
+    socketio.emit("game:reset", {}, namespace="/global")
+    return jsonify({"status": "full_reset"})
+
+
 @admin_bp.post("/rounds/pause")
 @login_required
 @admin_required
@@ -107,12 +120,41 @@ def resume_round_timer():
 @login_required
 @admin_required
 def admin_status():
+    round_obj = round_manager.current_round()
+    rounds = Round.query.order_by(Round.round_number).all()
+    teams = Team.query.all()
+    player_count = User.query.filter(User.role.notin_(["admin", "gm"])).count()
+
+    team_summary = []
+    for t in teams:
+        members = User.query.filter_by(team_id=t.id).count()
+        team_summary.append({
+            "id": t.id,
+            "nation_name": t.nation_name,
+            "nation_code": t.nation_code,
+            "members": members,
+            "seat_cap": t.seat_cap,
+        })
+
+    round_summary = [
+        {
+            "round_number": r.round_number,
+            "status": r.status,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+        }
+        for r in rounds
+    ]
+
     payload = {
         "global": serialize_global_state(),
         "crises": crisis_history(),
         "available_crises": list_available_crises(),
+        "player_count": player_count,
+        "teams": team_summary,
+        "rounds": round_summary,
+        "current_round": round_obj.round_number if round_obj else None,
+        "timer": round_manager.timer_payload(round_obj),
     }
-    round_obj = round_manager.current_round()
     if round_obj:
         payload["proposal_preview"] = build_proposal_preview(round_obj)
     return jsonify(payload)
@@ -169,15 +211,13 @@ def create_intel_drop():
     if missing:
         return jsonify({"error": "missing_fields", "fields": missing}), 400
 
-    import hashlib
-
     drop = IntelDrop(
         round_id=payload["round_id"],
         team_id=payload["team_id"],
         puzzle_type=payload["puzzle_type"],
         clue=payload["clue"],
         reward=payload.get("reward_type", "lifeline"),
-        solution_hash=hashlib.sha256(payload["solution"].encode()).hexdigest(),
+        solution_hash=hash_password(payload["solution"]),
     )
     db.session.add(drop)
     db.session.commit()
@@ -223,8 +263,6 @@ def list_intel_drops():
 @login_required
 @admin_required
 def create_mega_challenge():
-    import hashlib
-
     payload = request.get_json(silent=True) or {}
     description = (payload.get("description") or "").strip()
     solution = (payload.get("solution") or "").strip()
@@ -233,7 +271,7 @@ def create_mega_challenge():
         return jsonify({"error": "description_and_solution_required"}), 400
     challenge = MegaChallenge(
         description=description,
-        solution_hash=hashlib.sha256(solution.encode()).hexdigest(),
+        solution_hash=hash_password(solution),
         reward_tiers=reward_tiers,
     )
     db.session.add(challenge)

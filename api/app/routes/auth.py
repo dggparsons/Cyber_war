@@ -15,16 +15,16 @@ from ..utils.passwords import generate_random_password, hash_password, verify_pa
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 TEAM_JOIN_CODES = {
-    "NEXUS-OPS": "NEXUS",
-    "IRON-VANGUARD": "IRON",
-    "GHOST-SHELL": "GNET",
-    "CORAL-TIDE": "CORAL",
-    "FROST-WATCH": "FRST",
-    "SHADOW-VEIL": "SHDW",
-    "DAWN-SHIELD": "DAWN",
-    "NEON-GRID": "NEON",
-    "SKY-ARC": "SKY",
-    "LOTUS-VAULT": "LOTUS",
+    "NEXUS-OPS": "US",
+    "IRON-VANGUARD": "RU",
+    "GHOST-SHELL": "CN",
+    "CORAL-TIDE": "BR",
+    "FROST-WATCH": "EE",
+    "SHADOW-VEIL": "KP",
+    "DAWN-SHIELD": "UK",
+    "NEON-GRID": "JP",
+    "SKY-ARC": "IN",
+    "LOTUS-VAULT": "IL",
     "UN-PEACE": "UN",
 }
 

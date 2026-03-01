@@ -11,9 +11,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app import create_app
 from app.extensions import db
-from app.models import Round, Team, User
+from app.models import MegaChallenge, Round, Team, User
 from app.utils.passwords import hash_password
 from app.seeds.team_data import TEAMS
+from app.data.mega_challenge import (
+    MEGA_CHALLENGE_DESCRIPTION,
+    MEGA_CHALLENGE_REWARD_TIERS,
+    MEGA_CHALLENGE_SOLUTION,
+)
 
 
 def seed():
@@ -40,6 +45,7 @@ def seed():
             print("Rounds already exist; skipping")
 
         ensure_admin(app)
+        ensure_mega_challenge()
 
 
 def ensure_admin(app):
@@ -60,6 +66,20 @@ def ensure_admin(app):
     db.session.add(admin)
     db.session.commit()
     print(f"Created default admin account {admin_email}")
+
+
+def ensure_mega_challenge():
+    if MegaChallenge.query.first():
+        print("Mega challenge already exists; skipping")
+        return
+    challenge = MegaChallenge(
+        description=MEGA_CHALLENGE_DESCRIPTION,
+        solution_hash=hash_password(MEGA_CHALLENGE_SOLUTION),
+        reward_tiers=MEGA_CHALLENGE_REWARD_TIERS,
+    )
+    db.session.add(challenge)
+    db.session.commit()
+    print("Seeded Operation GHOSTLINE mega challenge")
 
 
 def main():

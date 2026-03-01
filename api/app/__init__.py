@@ -16,7 +16,7 @@ from .sockets import *  # noqa: F401,F403  # register namespaces
 from .sockets import chat_events  # noqa: F401
 from .routes import register_blueprints
 from .services.round_manager import round_manager  # noqa: F401
-from .services.schema import ensure_team_columns, ensure_global_state_columns, ensure_action_proposal_columns
+from .services.schema import ensure_team_columns, ensure_global_state_columns, ensure_action_proposal_columns, ensure_ai_run_columns, ensure_ai_round_score_columns, ensure_diplomacy_columns
 
 
 def create_app(env_name: str | None = None) -> Flask:
@@ -33,6 +33,9 @@ def create_app(env_name: str | None = None) -> Flask:
         ensure_team_columns()
         ensure_global_state_columns()
         ensure_action_proposal_columns()
+        ensure_ai_run_columns()
+        ensure_ai_round_score_columns()
+        ensure_diplomacy_columns()
 
     @app.before_request
     def _log_request():
