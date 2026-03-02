@@ -8,11 +8,14 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
-from ..extensions import db, socketio
+from ..extensions import db, socketio, limiter
 from ..models import DiplomacyChannel, Team, Message
 
 
 diplomacy_bp = Blueprint("diplomacy", __name__, url_prefix="/api/diplomacy")
+
+# Default rate limit for diplomacy endpoints
+limiter.limit("30 per minute")(diplomacy_bp)
 
 
 def _ensure_team():

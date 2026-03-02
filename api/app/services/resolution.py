@@ -13,6 +13,8 @@ from ..services.leaderboard import compute_outcome_scores
 
 
 def resolve_round(round_obj):
+    # Seed RNG deterministically so outcomes are reproducible for a given round
+    random.seed(f"cyberwar-r{round_obj.id}-{round_obj.round_number}")
     proposals = ActionProposal.query.filter_by(round_id=round_obj.id).all()
     resolutions = []
     narrative_entries = []

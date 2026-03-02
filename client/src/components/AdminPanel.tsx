@@ -10,6 +10,7 @@ import {
   adminInjectCrisis,
   adminClearCrisis,
   adminFullReset,
+  adminRerunNarrative,
   vetoProposal,
   type GlobalStatePayload,
   type CrisisInfo,
@@ -35,6 +36,7 @@ export function AdminPanel() {
   const [currentRound, setCurrentRound] = useState<number | null>(null)
   const [timer, setTimer] = useState<TimerPayload | null>(null)
   const [confirmFullReset, setConfirmFullReset] = useState(false)
+  const [narrative, setNarrative] = useState<string | null>(null)
 
   const flash = (msg: string, type: 'info' | 'error' | 'success' = 'info') => {
     setMessage(msg)
@@ -151,6 +153,18 @@ export function AdminPanel() {
     }
   }
 
+  const rerunNarrative = async () => {
+    try {
+      flash('Regenerating narrative...', 'info')
+      const result = await adminRerunNarrative()
+      setNarrative(result.narrative)
+      flash('Narrative regenerated.', 'success')
+    } catch (err) {
+      console.error(err)
+      flash('Failed to regenerate narrative.', 'error')
+    }
+  }
+
   const timerState = timer?.state ?? 'idle'
   const totalEscalation = globalStatus?.total_escalation ?? 0
 
@@ -223,7 +237,16 @@ export function AdminPanel() {
                 Resume Timer
               </button>
             ) : null}
+            <button className="rounded border border-purple-500/50 bg-purple-900/20 px-5 py-2 text-sm font-semibold text-purple-300 hover:bg-purple-900/30" onClick={rerunNarrative}>
+              Re-run Narrative
+            </button>
           </div>
+          {narrative && (
+            <div className="mt-3 rounded border border-slate-700 bg-warroom-blue/30 p-3 text-sm text-slate-300">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-purple-400">World Engine Narrative</p>
+              <p className="whitespace-pre-wrap">{narrative}</p>
+            </div>
+          )}
         </div>
 
         {/* ── Teams ────────────────────────────────────────────────────── */}

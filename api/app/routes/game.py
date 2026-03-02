@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from ..data.actions import ACTIONS, ACTION_LOOKUP
-from ..extensions import db, socketio
+from ..extensions import db, socketio, limiter
 from ..models import ActionProposal, Team, IntelDrop, ActionVote, NewsEvent, Action, FalseFlagPlan, MegaChallenge, MegaChallengeSolve, Lifeline, User, Round
 from ..services.rounds import get_active_round, list_team_proposals
 from ..services.leaderboard import compute_outcome_scores
@@ -20,6 +20,9 @@ from ..utils.passwords import verify_password
 
 
 game_bp = Blueprint("game", __name__, url_prefix="/api/game")
+
+# Apply default rate limit to all game endpoints
+limiter.limit("60 per minute")(game_bp)
 
 
 def _lifeline_type_for_intel(intel: IntelDrop) -> str:
@@ -53,58 +56,102 @@ def _current_user_is_gm() -> bool:
     return current_user.is_authenticated and current_user.role in {"gm", "admin"}
 
 
+def _avatar(bg: str, fg: str, icon: str, accent: str = "#0f172a") -> str:
+    """Build a minimal SVG data-URI portrait."""
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">'
+        f'<rect width="48" height="48" rx="6" fill="{bg}"/>'
+        f'<circle cx="24" cy="18" r="9" fill="{fg}" opacity=".9"/>'
+        f'<ellipse cx="24" cy="40" rx="14" ry="10" fill="{fg}" opacity=".7"/>'
+        f'<text x="24" y="22" text-anchor="middle" font-size="13" fill="{accent}">{icon}</text>'
+        f'</svg>'
+    )
+    import base64
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
+
+
 ADVISOR_PRESETS = {
     "NEXUS": [
-        {"name": "General Arkos", "mood": "hawkish", "hint": "Hit them before they regroup."},
-        {"name": "Minister Vale", "mood": "paranoid", "hint": "Layer new defenses immediately."},
-        {"name": "Prime Minister Rhee", "mood": "diplomatic", "hint": "Keep allies informed."},
-        {"name": "Public Sentiment", "mood": "anxious", "hint": "Citizens fear retaliation."},
+        {"name": "General Arkos", "mood": "hawkish", "hint": "Hit them before they regroup.",
+         "avatar": _avatar("#1e3a5f", "#c0392b", "\u2694")},
+        {"name": "Minister Vale", "mood": "paranoid", "hint": "Layer new defenses immediately.",
+         "avatar": _avatar("#1e3a5f", "#7f8c8d", "\U0001f441")},
+        {"name": "Prime Minister Rhee", "mood": "diplomatic", "hint": "Keep allies informed.",
+         "avatar": _avatar("#1e3a5f", "#2ecc71", "\u2696")},
+        {"name": "Public Sentiment", "mood": "anxious", "hint": "Citizens fear retaliation.",
+         "avatar": _avatar("#1e3a5f", "#f39c12", "\u265a")},
     ],
     "IRON": [
-        {"name": "Marshal Petrov", "mood": "aggressive", "hint": "NEXUS only understands force."},
-        {"name": "Chief Operative Lin", "mood": "calculated", "hint": "Use proxies to avoid attribution."},
-        {"name": "Commissar Irina", "mood": "propaganda", "hint": "Control the narrative before they do."},
-        {"name": "State Council", "mood": "pragmatic", "hint": "Guard our critical utilities above all."},
+        {"name": "Marshal Petrov", "mood": "aggressive", "hint": "NEXUS only understands force.",
+         "avatar": _avatar("#4a1a2e", "#e74c3c", "\u2620")},
+        {"name": "Chief Operative Lin", "mood": "calculated", "hint": "Use proxies to avoid attribution.",
+         "avatar": _avatar("#4a1a2e", "#9b59b6", "\u2316")},
+        {"name": "Commissar Irina", "mood": "propaganda", "hint": "Control the narrative before they do.",
+         "avatar": _avatar("#4a1a2e", "#e67e22", "\u2691")},
+        {"name": "State Council", "mood": "pragmatic", "hint": "Guard our critical utilities above all.",
+         "avatar": _avatar("#4a1a2e", "#95a5a6", "\u2699")},
     ],
     "GNET": [
-        {"name": "Director Saar", "mood": "innovative", "hint": "Leverage zero-days quickly."},
-        {"name": "Ambassador Lior", "mood": "diplomatic", "hint": "Alliances keep us alive."},
-        {"name": "Cyber Monk", "mood": "cautious", "hint": "Defense is our best offense."},
+        {"name": "Director Saar", "mood": "innovative", "hint": "Leverage zero-days quickly.",
+         "avatar": _avatar("#0d3b2e", "#1abc9c", "\u26a1")},
+        {"name": "Ambassador Lior", "mood": "diplomatic", "hint": "Alliances keep us alive.",
+         "avatar": _avatar("#0d3b2e", "#3498db", "\u2696")},
+        {"name": "Cyber Monk", "mood": "cautious", "hint": "Defense is our best offense.",
+         "avatar": _avatar("#0d3b2e", "#ecf0f1", "\u262f")},
     ],
     "CORAL": [
-        {"name": "Minister Hana", "mood": "defensive", "hint": "Protect offshore infrastructure first."},
-        {"name": "Chief of Investments", "mood": "economic", "hint": "Sanctions hurt us; avoid escalation."},
-        {"name": "Energy Czar Malik", "mood": "strategic", "hint": "Target supply chains to retaliate."},
+        {"name": "Minister Hana", "mood": "defensive", "hint": "Protect offshore infrastructure first.",
+         "avatar": _avatar("#1a3c4a", "#2980b9", "\u2693")},
+        {"name": "Chief of Investments", "mood": "economic", "hint": "Sanctions hurt us; avoid escalation.",
+         "avatar": _avatar("#1a3c4a", "#f1c40f", "\u2b50")},
+        {"name": "Energy Czar Malik", "mood": "strategic", "hint": "Target supply chains to retaliate.",
+         "avatar": _avatar("#1a3c4a", "#e67e22", "\u269b")},
     ],
     "FRST": [
-        {"name": "Commander Tuomi", "mood": "stoic", "hint": "Uphold treaties—even when others do not."},
-        {"name": "CERT Lead Aava", "mood": "paranoid", "hint": "Assume everyone is inside already."},
-        {"name": "Citizen Panel", "mood": "peaceful", "hint": "Public opinion punishes aggression."},
+        {"name": "Commander Tuomi", "mood": "stoic", "hint": "Uphold treaties\u2014even when others do not.",
+         "avatar": _avatar("#1a2a3a", "#bdc3c7", "\u2744")},
+        {"name": "CERT Lead Aava", "mood": "paranoid", "hint": "Assume everyone is inside already.",
+         "avatar": _avatar("#1a2a3a", "#e74c3c", "\U0001f6e1")},
+        {"name": "Citizen Panel", "mood": "peaceful", "hint": "Public opinion punishes aggression.",
+         "avatar": _avatar("#1a2a3a", "#2ecc71", "\u262e")},
     ],
     "SHDW": [
-        {"name": "General Koa", "mood": "chaotic", "hint": "Strike where it hurts—ethics optional."},
-        {"name": "Minister of Truth", "mood": "deceptive", "hint": "False flags keep us alive."},
+        {"name": "General Koa", "mood": "chaotic", "hint": "Strike where it hurts\u2014ethics optional.",
+         "avatar": _avatar("#2c2c2c", "#e74c3c", "\U0001f525")},
+        {"name": "Minister of Truth", "mood": "deceptive", "hint": "False flags keep us alive.",
+         "avatar": _avatar("#2c2c2c", "#8e44ad", "\U0001f3ad")},
     ],
     "DAWN": [
-        {"name": "Commander Reyes", "mood": "protective", "hint": "Shield allies to maintain credibility."},
-        {"name": "Envoy Calderon", "mood": "calm", "hint": "Broker deals before missiles fly."},
-        {"name": "NGO Liaison", "mood": "humanitarian", "hint": "Civilian impact matters."},
+        {"name": "Commander Reyes", "mood": "protective", "hint": "Shield allies to maintain credibility.",
+         "avatar": _avatar("#3a2a0a", "#f39c12", "\U0001f6e1")},
+        {"name": "Envoy Calderon", "mood": "calm", "hint": "Broker deals before missiles fly.",
+         "avatar": _avatar("#3a2a0a", "#2ecc71", "\u2696")},
+        {"name": "NGO Liaison", "mood": "humanitarian", "hint": "Civilian impact matters.",
+         "avatar": _avatar("#3a2a0a", "#e74c3c", "\u2764")},
     ],
     "NEON": [
-        {"name": "CEO Myles", "mood": "profit", "hint": "Attacks that scare investors must be punished."},
-        {"name": "City Grid AI", "mood": "analytical", "hint": "Optimize for resource gain each round."},
+        {"name": "CEO Myles", "mood": "profit", "hint": "Attacks that scare investors must be punished.",
+         "avatar": _avatar("#1a0a3a", "#00ff88", "\u2b24")},
+        {"name": "City Grid AI", "mood": "analytical", "hint": "Optimize for resource gain each round.",
+         "avatar": _avatar("#1a0a3a", "#3498db", "\u2b23")},
     ],
     "SKY": [
-        {"name": "Admiral Vega", "mood": "watchful", "hint": "Keep orbital assets online."},
-        {"name": "Telemetry Chief Inez", "mood": "precise", "hint": "Offense should blind before it burns."},
+        {"name": "Admiral Vega", "mood": "watchful", "hint": "Keep orbital assets online.",
+         "avatar": _avatar("#0a1a3a", "#ecf0f1", "\u2605")},
+        {"name": "Telemetry Chief Inez", "mood": "precise", "hint": "Offense should blind before it burns.",
+         "avatar": _avatar("#0a1a3a", "#1abc9c", "\u25ce")},
     ],
     "LOTUS": [
-        {"name": "Archivist Mei", "mood": "neutral", "hint": "Information trades keep us alive."},
-        {"name": "Guardian AI", "mood": "defensive", "hint": "Stay invisible; punish spies quietly."},
+        {"name": "Archivist Mei", "mood": "neutral", "hint": "Information trades keep us alive.",
+         "avatar": _avatar("#2a1a2a", "#dda0dd", "\u2698")},
+        {"name": "Guardian AI", "mood": "defensive", "hint": "Stay invisible; punish spies quietly.",
+         "avatar": _avatar("#2a1a2a", "#1abc9c", "\u2726")},
     ],
     "UN": [
-        {"name": "Secretary J.B. Lyons", "mood": "diplomatic", "hint": "Broker truces when escalation spikes."},
-        {"name": "Peacekeeping Lead Sato", "mood": "firm", "hint": "Sanction nations that refuse oversight."},
+        {"name": "Secretary J.B. Lyons", "mood": "diplomatic", "hint": "Broker truces when escalation spikes.",
+         "avatar": _avatar("#0a2a4a", "#3498db", "\u2302")},
+        {"name": "Peacekeeping Lead Sato", "mood": "firm", "hint": "Sanction nations that refuse oversight.",
+         "avatar": _avatar("#0a2a4a", "#2ecc71", "\u269c")},
     ],
 }
 
@@ -572,6 +619,7 @@ def get_proposals():
 
 
 @game_bp.post("/proposals")
+@limiter.limit("10 per minute")
 @login_required
 def submit_proposal():
     if not current_user.team_id:
@@ -595,6 +643,8 @@ def submit_proposal():
     if action_def.category == "nuclear" and not global_state.nuke_unlocked:
         return jsonify({"error": "nuclear_locked"}), 400
 
+    if action_def.target_required and not target_team_id:
+        return jsonify({"error": "target_required"}), 400
     if target_team_id and int(target_team_id) == current_user.team_id:
         return jsonify({"error": "cannot_target_self"}), 400
 
@@ -626,6 +676,7 @@ def submit_proposal():
 
 
 @game_bp.post("/votes")
+@limiter.limit("30 per minute")
 @login_required
 def cast_vote():
     global_state = get_global_state()
@@ -693,6 +744,7 @@ def get_mega_challenge():
 
 
 @game_bp.post("/mega-challenge/solve")
+@limiter.limit("5 per minute")
 @login_required
 def solve_mega_challenge():
     if not current_user.team_id:

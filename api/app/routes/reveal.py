@@ -8,9 +8,12 @@ from flask_login import current_user
 
 from ..models import AiRoundScore, AiRun, OutcomeScoreHistory, Round
 from ..services.global_state import get_global_state
+from ..extensions import limiter
 from ..data.ai_reveal import AI_REVEAL_SAMPLE
 
 reveal_bp = Blueprint("reveal", __name__, url_prefix="/api/reveal")
+
+limiter.limit("20 per minute")(reveal_bp)
 
 
 @reveal_bp.get("/")

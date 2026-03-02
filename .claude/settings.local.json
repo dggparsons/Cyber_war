@@ -21,7 +21,10 @@
       "Bash(python:*)",
       "Bash(docker exec:*)",
       "Bash(docker compose:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(ls:*)",
+      "Bash(do wc:*)",
+      "Bash(sqlite3:*)"
     ]
   }
 }

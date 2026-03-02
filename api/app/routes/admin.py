@@ -6,7 +6,7 @@ from functools import wraps
 from flask import Blueprint, jsonify, request, current_app
 from flask_login import current_user, login_required
 
-from ..extensions import db, socketio
+from ..extensions import db, socketio, limiter
 from ..models import Round, IntelDrop, MegaChallenge, Team, User
 from ..utils.passwords import hash_password
 from ..services.round_manager import round_manager
@@ -15,8 +15,13 @@ from ..services.global_state import serialize_global_state, set_nuke_unlocked, c
 from ..services.crisis import crisis_history, inject_crisis, list_available_crises, clear_crisis_state
 from ..services.proposals import build_proposal_preview
 from ..services.game_reset import reset_game_state, full_reset
+from ..services.world_engine import generate_round_narrative
+from ..models import Action
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
+
+# Default rate limit for admin endpoints
+limiter.limit("30 per minute")(admin_bp)
 
 
 def admin_required(func):
@@ -292,3 +297,37 @@ def get_mega_challenge_admin():
         "description": challenge.description,
         "reward_tiers": challenge.reward_tiers,
     })
+
+
+@admin_bp.post("/narrative/rerun")
+@login_required
+@admin_required
+def rerun_narrative():
+    """Re-generate the World Engine narrative for the current round."""
+    round_obj = round_manager.current_round()
+    if not round_obj:
+        return jsonify({"error": "no_active_round"}), 400
+    actions = Action.query.filter_by(round_id=round_obj.id).all()
+    entries = []
+    for a in actions:
+        actor = Team.query.get(a.team_id)
+        target = Team.query.get(a.target_team_id) if a.target_team_id else None
+        from ..data.actions import ACTION_LOOKUP
+        action_def = ACTION_LOOKUP.get(a.action_code)
+        entries.append({
+            "actor": actor.nation_name if actor else None,
+            "target": target.nation_name if target else None,
+            "action_code": a.action_code,
+            "action_name": action_def.name if action_def else a.action_code,
+            "success": a.success,
+            "category": action_def.category if action_def else None,
+        })
+    from ..services.global_state import get_global_state
+    global_state = get_global_state()
+    round_obj.narrative = generate_round_narrative(
+        round_obj.round_number, entries,
+        crisis=global_state.active_crisis_payload,
+    )
+    db.session.add(round_obj)
+    db.session.commit()
+    return jsonify({"narrative": round_obj.narrative})

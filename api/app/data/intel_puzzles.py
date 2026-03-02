@@ -13,7 +13,7 @@ INTEL_PUZZLE_POOL: list[dict] = [
     {"puzzle_type": "Signal Intercept", "clue": "Decoded radio burst (Base64):\n\n`U0hBRE9X`", "solution": "SHADOW", "reward": "phone_a_friend"},
     {"puzzle_type": "Signal Intercept", "clue": "Intercepted satellite uplink (Base64):\n\n`RklSRVdBTEw=`", "solution": "FIREWALL", "reward": "false_flag"},
     {"puzzle_type": "Signal Intercept", "clue": "Encrypted field report (Base64):\n\n`QkFDS0RPT1I=`", "solution": "BACKDOOR", "reward": "phone_a_friend"},
-    {"puzzle_type": "Signal Intercept", "clue": "Captured beacon payload (Base64):\n\n`VFJPSUFO`", "solution": "TROJAN", "reward": "false_flag"},
+    {"puzzle_type": "Signal Intercept", "clue": "Captured beacon payload (Base64):\n\n`VFJPSkFO`", "solution": "TROJAN", "reward": "false_flag"},
     {"puzzle_type": "Signal Intercept", "clue": "Decoded embassy cable (Base64):\n\n`QUxMSUFOQ0U=`", "solution": "ALLIANCE", "reward": "phone_a_friend"},
     {"puzzle_type": "Signal Intercept", "clue": "Encrypted logistics channel (Base64):\n\n`U1RSSUtF`", "solution": "STRIKE", "reward": "false_flag"},
     {"puzzle_type": "Signal Intercept", "clue": "Monitoring station capture (Base64):\n\n`UEhJU0hJTkc=`", "solution": "PHISHING", "reward": "phone_a_friend"},
@@ -35,7 +35,7 @@ INTEL_PUZZLE_POOL: list[dict] = [
 
     # ── Caesar Cipher (shift 3) ───────────────────────────────
     {"puzzle_type": "Cipher Intercept", "clue": "Shift cipher detected (ROT-3):\n\n`EUHDFK`", "solution": "BREACH", "reward": "phone_a_friend"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Encrypted field note (ROT-3):\n\n`GHIHQVH`", "solution": "DEFENCE", "reward": "false_flag"},
+    {"puzzle_type": "Cipher Intercept", "clue": "Encrypted field note (ROT-3):\n\n`GHIHQVH`", "solution": "DEFENSE", "reward": "false_flag"},
     {"puzzle_type": "Cipher Intercept", "clue": "Agent dead-drop (ROT-3):\n\n`VKLHOG`", "solution": "SHIELD", "reward": "phone_a_friend"},
     {"puzzle_type": "Cipher Intercept", "clue": "Embassy cipher (ROT-3):\n\n`VXUYHLOODQFH`", "solution": "SURVEILLANCE", "reward": "false_flag"},
     {"puzzle_type": "Cipher Intercept", "clue": "Border patrol intercept (ROT-3):\n\n`GHWHFW`", "solution": "DETECT", "reward": "phone_a_friend"},
@@ -70,16 +70,70 @@ INTEL_PUZZLE_POOL: list[dict] = [
     {"puzzle_type": "Web Traffic", "clue": "Proxy log artifact:\n\n`%53%48%45%4C%4C`", "solution": "SHELL", "reward": "false_flag"},
 
     # ── Reverse String ────────────────────────────────────────
-    {"puzzle_type": "Obfuscated Log", "clue": "Reversed string found in syslog:\n\n`EDOCKCAB`", "solution": "BACKCODE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Mirror text in crash dump:\n\n`TNIALPXE`", "solution": "EXPLAINT", "reward": "false_flag"},
+    {"puzzle_type": "Obfuscated Log", "clue": "Reversed string found in syslog:\n\n`ROODKCAB`", "solution": "BACKDOOR", "reward": "phone_a_friend"},
+    {"puzzle_type": "Obfuscated Log", "clue": "Mirror text in crash dump:\n\n`TIOLPXE`", "solution": "EXPLOIT", "reward": "false_flag"},
     {"puzzle_type": "Obfuscated Log", "clue": "Inverted auth log entry:\n\n`HCNUAL`", "solution": "LAUNCH", "reward": "phone_a_friend"},
     {"puzzle_type": "Obfuscated Log", "clue": "Reversed DNS query:\n\n`RETLIF`", "solution": "FILTER", "reward": "false_flag"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Flipped audit trail:\n\n`KCOLTAED`", "solution": "DEADLOCK", "reward": "phone_a_friend"},
+    {"puzzle_type": "Obfuscated Log", "clue": "Flipped audit trail:\n\n`KCOLDAED`", "solution": "DEADLOCK", "reward": "phone_a_friend"},
     {"puzzle_type": "Obfuscated Log", "clue": "Reversed process name:\n\n`TSOHG`", "solution": "GHOST", "reward": "false_flag"},
     {"puzzle_type": "Obfuscated Log", "clue": "Mirror malware sample:\n\n`ERIF`", "solution": "FIRE", "reward": "phone_a_friend"},
     {"puzzle_type": "Obfuscated Log", "clue": "Inverted C2 beacon:\n\n`ROTINOM`", "solution": "MONITOR", "reward": "false_flag"},
     {"puzzle_type": "Obfuscated Log", "clue": "Reversed registry key:\n\n`TPYRC`", "solution": "CRYPT", "reward": "phone_a_friend"},
     {"puzzle_type": "Obfuscated Log", "clue": "Backwards event ID:\n\n`EGATOBAS`", "solution": "SABOTAGE", "reward": "false_flag"},
+
+    # ── Asset-Pack Puzzles (match assets/intel_samples/) ─────
+    # These are higher-difficulty puzzles that correspond to the
+    # detailed write-ups in the asset pack markdown files.
+
+    # cipher_hex.md — Multi-word hex decode
+    {
+        "puzzle_type": "Satellite Intercept",
+        "clue": "Intercepted hex payload from IRONVEIL satellite uplink. The burst was embedded in telemetry handshake data:\n\n`4F5045524154494F4E20424C41434B4F5554`\n\nConvert each hex pair to ASCII. Note: `0x20` = space.",
+        "solution": "OPERATION BLACKOUT",
+        "reward": "false_flag",
+        "difficulty": "easy-medium",
+        "asset_ref": "assets/intel_samples/cipher_hex.md",
+    },
+
+    # cipher_substitution.md — Caesar shift +7
+    {
+        "puzzle_type": "HUMINT Intercept",
+        "clue": "Photographed note from SHADOWMERE officer's desk:\n\n`PUZPKLY AOYLHA KLALJALK`\n\nSuspected monoalphabetic substitution. Frequency analysis shows 'L' appears 4 times — in English the most common letter is E.",
+        "solution": "INSIDER THREAT DETECTED",
+        "reward": "phone_a_friend",
+        "difficulty": "medium",
+        "asset_ref": "assets/intel_samples/cipher_substitution.md",
+    },
+
+    # cipher_vigenere.md — Vigenere with key CIPHER
+    {
+        "puzzle_type": "COMINT Intercept",
+        "clue": "Encrypted transmission from IRONVEIL proxy relay:\n\n`NIJUGY UMFBIEEM PSTYC`\n\nAnalyst note recovered from operator terminal: \"Key is CIPHER\" (Vigenere). Spaces are preserved; key advances only on letters.",
+        "solution": "LAUNCH SEQUENCE ALPHA",
+        "reward": "false_flag",
+        "difficulty": "hard",
+        "asset_ref": "assets/intel_samples/cipher_vigenere.md",
+    },
+
+    # stego_base64.md — Base64 hidden in diplomatic cable
+    {
+        "puzzle_type": "OSINT Collection",
+        "clue": "CORALHAVEN diplomatic communique No. 2026-0147 has a suspicious archive reference field:\n\n`Q1JJVElDQUwgVlVMTkVSQUJJTElUWQ==`\n\nThis does not match their standard reference format (CH-YYYY-NNNNN). The trailing `==` is a Base64 padding signature.",
+        "solution": "CRITICAL VULNERABILITY",
+        "reward": "phone_a_friend",
+        "difficulty": "medium",
+        "asset_ref": "assets/intel_samples/stego_base64.md",
+    },
+
+    # stego_metadata.md — Hex hidden in EXIF Artist field
+    {
+        "puzzle_type": "Digital Forensics",
+        "clue": "Seized laptop image has anomalous EXIF metadata. All fields match Samsung Galaxy S24 Ultra defaults except:\n\n`Artist: 455846494C5452415445`\n\nSamsung phones do not populate the Artist field. This value appears to be hex-encoded ASCII.",
+        "solution": "EXFILTRATE",
+        "reward": "false_flag",
+        "difficulty": "medium-hard",
+        "asset_ref": "assets/intel_samples/stego_metadata.md",
+    },
 ]
 
 # Verify we have enough for 10 teams × 6 rounds

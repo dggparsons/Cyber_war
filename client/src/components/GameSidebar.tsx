@@ -1,6 +1,8 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import type { LeaderboardResponse, RevealData, HistoryEntry } from '../lib/api'
 import type { GameState } from '../lib/gameUtils'
+import { NATION_COLORS } from '../lib/gameUtils'
 import { ChatComposer } from './ChatComposer'
 import { RevealView } from './RevealView'
 
@@ -28,6 +30,27 @@ export function GameSidebar({
 }: Props) {
   const chatEndRef = useRef<HTMLDivElement>(null)
 
+  // Build escalation chart data from leaderboard.escalation_series
+  const escalationChartData = useMemo(() => {
+    if (!leaderboard?.escalation_series) return []
+    const nations = Object.keys(leaderboard.escalation_series)
+    if (nations.length === 0) return []
+    const maxRounds = Math.max(...nations.map((n) => leaderboard.escalation_series[n]?.length ?? 0))
+    if (maxRounds === 0) return []
+    const rows: Record<string, number | string>[] = []
+    for (let i = 0; i < maxRounds; i++) {
+      const row: Record<string, number | string> = { round: i + 1 }
+      for (const nation of nations) {
+        const series = leaderboard.escalation_series[nation]
+        row[nation] = series?.[i]?.score ?? 0
+      }
+      rows.push(row)
+    }
+    return rows
+  }, [leaderboard?.escalation_series])
+
+  const escalationNations = leaderboard?.escalation_series ? Object.keys(leaderboard.escalation_series) : []
+
   return (
     <aside className="space-y-6">
       {/* Leaderboard */}
@@ -42,6 +65,25 @@ export function GameSidebar({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Escalation Trends Chart */}
+      {escalationChartData.length > 1 && (
+        <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+          <h3 className="font-pixel text-xs text-warroom-cyan">Outcome Trends</h3>
+          <div className="mt-2" style={{ width: '100%', height: 180 }}>
+            <ResponsiveContainer>
+              <LineChart data={escalationChartData}>
+                <XAxis dataKey="round" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} width={35} />
+                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: 11 }} />
+                {escalationNations.map((nation, idx) => (
+                  <Line key={nation} type="monotone" dataKey={nation} stroke={NATION_COLORS[idx % NATION_COLORS.length]} strokeWidth={1.5} dot={false} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
 

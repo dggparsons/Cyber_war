@@ -57,7 +57,7 @@ export type GameState = {
     team_type?: string | null
     seat_cap: number
   }
-  advisors: Array<{ name: string; mood: string; hint: string }>
+  advisors: Array<{ name: string; mood: string; hint: string; avatar?: string }>
   action_slots: Array<{ slot: number }>
   chat_sample: string[]
   narrative: string

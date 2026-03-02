@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ActionDefinition, CrisisInfo } from '../lib/api'
 import type { Proposal } from '../lib/gameUtils'
 import { getCategoryColor } from '../lib/gameUtils'
@@ -34,6 +35,7 @@ export function ActionConsole({
   onSelectionChange, onTargetChange, onSubmitProposal,
   onVote, onApplyFalseFlag, onFalseFlagTargetChange, onCaptainOverride,
 }: Props) {
+  const [lockConfirm, setLockConfirm] = useState<number | null>(null)
   const actionName = (code: string) => actions.find((a) => a.code === code)?.name ?? code
 
   return (
@@ -66,6 +68,21 @@ export function ActionConsole({
           )}
           <button className={`rounded border border-warroom-cyan/60 bg-warroom-cyan/20 px-6 py-2 text-xs font-bold tracking-wide text-warroom-cyan transition hover:bg-warroom-cyan/30 hover:border-warroom-cyan ${doomActive ? 'cursor-not-allowed opacity-50 hover:border-slate-600 hover:bg-warroom-cyan/20' : ''}`} onClick={() => onSubmitProposal(1)} disabled={doomActive}>Submit Proposal</button>
         </div>
+        {selection[1] && (() => {
+          const selected = actions.find((a) => a.code === selection[1])
+          if (!selected) return null
+          return (
+            <div className="mt-2 rounded border border-slate-700/50 bg-warroom-blue/30 px-3 py-2 text-xs text-slate-300">
+              <p>{selected.description}</p>
+              <p className="mt-1">
+                <span className="text-slate-400">Category:</span>{' '}
+                <span style={{ color: getCategoryColor(selected.category) }}>{selected.category.replace('_', ' ')}</span>
+                <span className="ml-3 text-slate-400">Escalation:</span>{' '}
+                <span className={selected.escalation >= 20 ? 'text-red-400' : selected.escalation >= 5 ? 'text-warroom-amber' : 'text-green-400'}>+{selected.escalation}</span>
+              </p>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Team Proposals */}
@@ -98,7 +115,14 @@ export function ActionConsole({
                   </div>
                 </div>
                 {isCaptain && proposal.status === 'draft' && onCaptainOverride && (
-                  <button className="mt-1 w-full rounded border border-warroom-cyan/40 bg-warroom-cyan/10 py-1 text-[10px] uppercase tracking-widest text-warroom-cyan" onClick={() => onCaptainOverride(proposal.id)}>Captain Override: Lock</button>
+                  lockConfirm === proposal.id ? (
+                    <div className="mt-1 flex gap-2">
+                      <button className="flex-1 rounded border border-warroom-amber/60 bg-warroom-amber/20 py-1 text-[10px] font-bold uppercase tracking-widest text-warroom-amber" onClick={() => { onCaptainOverride(proposal.id); setLockConfirm(null) }}>Confirm Lock</button>
+                      <button className="flex-1 rounded border border-slate-600 bg-slate-800 py-1 text-[10px] uppercase tracking-widest text-slate-300" onClick={() => setLockConfirm(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button className="mt-1 w-full rounded border border-warroom-cyan/40 bg-warroom-cyan/10 py-1 text-[10px] uppercase tracking-widest text-warroom-cyan" onClick={() => setLockConfirm(proposal.id)}>Captain Override: Lock</button>
+                  )
                 )}
                 {!proposal.false_flag_target_team_id && proposal.status === 'draft' && falseFlagCount > 0 && (
                   <div className="mt-2 flex items-center gap-2 text-xs">

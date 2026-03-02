@@ -62,7 +62,7 @@ type GameStateResponse = {
     team_type?: string | null
     seat_cap: number
   }
-  advisors: Array<{ name: string; mood: string; hint: string }>
+  advisors: Array<{ name: string; mood: string; hint: string; avatar?: string }>
   action_slots: Array<{ slot: number }>
   chat_sample: string[]
   narrative: string
@@ -275,6 +275,10 @@ export async function adminClearCrisis() {
 
 export async function adminFullReset() {
   return apiFetch('/api/admin/full-reset', { method: 'POST' })
+}
+
+export async function adminRerunNarrative(): Promise<{ narrative: string }> {
+  return apiFetch('/api/admin/narrative/rerun', { method: 'POST' })
 }
 
 export async function fetchDiplomacyChannels() {

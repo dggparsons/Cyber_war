@@ -67,9 +67,6 @@ export function GameHeader({
             {megaChallenge?.active && (
               <button className="rounded border border-purple-400/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-purple-400 hover:border-purple-400" onClick={onViewMega}>Mega Challenge</button>
             )}
-            {(role === 'admin' || role === 'gm') && (
-              <a href="?view=gm" className="rounded border border-red-400/40 bg-red-900/30 px-3 py-1 text-xs font-semibold text-red-400 hover:border-red-400 hover:bg-red-900/50">GM Panel</a>
-            )}
             <button className="rounded-full border border-slate-500 bg-warroom-blue/60 w-7 h-7 flex items-center justify-center text-sm font-bold text-slate-300 hover:border-warroom-cyan hover:text-warroom-cyan" onClick={onViewHelp} title="How to Play">?</button>
           </div>
         </div>
