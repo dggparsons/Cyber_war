@@ -1,7 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { GameState } from '../lib/gameUtils'
-import type { MegaChallengeData } from '../lib/api'
+import type { MegaChallengeData, RoundRecap } from '../lib/api'
 
 export type IntelDropItem = { id: number; title: string; description: string; reward: string; status: string }
 
@@ -360,6 +360,199 @@ export function MegaChallengeModal({ challenge, answer, onAnswerChange, onSubmit
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+const CAT_COLORS: Record<string, string> = {
+  de_escalation: 'text-emerald-400',
+  status_quo: 'text-slate-300',
+  posturing: 'text-yellow-400',
+  non_violent: 'text-orange-400',
+  violent: 'text-red-400',
+  nuclear: 'text-purple-400',
+}
+
+const CAT_LABELS: Record<string, string> = {
+  de_escalation: 'De-escalation',
+  status_quo: 'Status Quo',
+  posturing: 'Posturing',
+  non_violent: 'Non-violent',
+  violent: 'Violent',
+  nuclear: 'Nuclear',
+}
+
+export function RoundRecapModal({ recap, onClose }: { recap: RoundRecap; onClose: () => void }) {
+  const topMover = [...recap.standings].sort((a, b) => b.delta - a.delta)[0]
+  const biggestDrop = [...recap.standings].sort((a, b) => a.delta - b.delta)[0]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-warroom-amber/50 bg-slate-900/95 p-6 shadow-2xl shadow-warroom-amber/20">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-700/60 pb-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-warroom-amber/70">Intelligence Debrief</p>
+            <h2 className="font-pixel text-xl text-warroom-amber">Round {recap.round_number} Recap</h2>
+          </div>
+          <button className="rounded border border-slate-700 px-3 py-1.5 text-xs uppercase tracking-widest text-slate-400 hover:border-warroom-amber/50 hover:text-warroom-amber" onClick={onClose}>
+            Continue
+          </button>
+        </div>
+
+        {/* Action summary bar */}
+        <div className="mt-4 flex flex-wrap gap-3 text-xs">
+          <div className="rounded border border-slate-700/60 bg-warroom-blue/40 px-3 py-1.5">
+            <span className="text-slate-500">Actions: </span>
+            <span className="text-slate-100 font-semibold">{recap.summary.total_actions}</span>
+          </div>
+          <div className="rounded border border-emerald-500/30 bg-emerald-900/15 px-3 py-1.5">
+            <span className="text-slate-500">Succeeded: </span>
+            <span className="text-emerald-400 font-semibold">{recap.summary.successful}</span>
+          </div>
+          <div className="rounded border border-red-500/30 bg-red-900/15 px-3 py-1.5">
+            <span className="text-slate-500">Failed: </span>
+            <span className="text-red-400 font-semibold">{recap.summary.failed}</span>
+          </div>
+          {Object.entries(recap.summary.by_category)
+            .filter(([cat]) => cat !== 'status_quo')
+            .sort(([, a], [, b]) => b - a)
+            .map(([cat, count]) => (
+              <div key={cat} className="rounded border border-slate-700/40 bg-warroom-blue/20 px-3 py-1.5">
+                <span className={CAT_COLORS[cat] ?? 'text-slate-300'}>{CAT_LABELS[cat] ?? cat}: </span>
+                <span className="text-slate-100">{count}</span>
+              </div>
+            ))
+          }
+        </div>
+
+        {/* Your team results */}
+        {recap.my_stats && (
+          <div className="mt-5 rounded border border-warroom-cyan/40 bg-warroom-cyan/5 p-4">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-cyan/70 mb-3">Your Nation Status</p>
+            <div className="grid grid-cols-4 gap-3 text-center text-sm">
+              <div>
+                <p className="text-[10px] uppercase text-slate-500">Prosperity</p>
+                <p className="text-lg font-semibold text-emerald-400">{recap.my_stats.prosperity}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-slate-500">Security</p>
+                <p className="text-lg font-semibold text-blue-400">{recap.my_stats.security}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-slate-500">Influence</p>
+                <p className="text-lg font-semibold text-purple-400">{recap.my_stats.influence}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-slate-500">Escalation</p>
+                <p className={`text-lg font-semibold ${recap.my_stats.escalation > 20 ? 'text-red-400' : recap.my_stats.escalation > 10 ? 'text-warroom-amber' : 'text-slate-300'}`}>{recap.my_stats.escalation}</p>
+              </div>
+            </div>
+            {recap.my_actions.length > 0 && (
+              <div className="mt-3 border-t border-slate-700/50 pt-3">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Your Actions This Round</p>
+                {recap.my_actions.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className={`text-[10px] uppercase font-semibold ${CAT_COLORS[a.category] ?? 'text-slate-400'}`}>Slot {a.slot}</span>
+                    <span className="text-slate-200">{a.action_name}</span>
+                    {a.target && <span className="text-slate-500">on <span className="text-slate-300">{a.target}</span></span>}
+                    <span className={`ml-auto text-xs font-semibold ${a.success ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {a.success ? 'SUCCESS' : 'FAILED'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Narrative */}
+        {recap.narrative && (
+          <div className="mt-5">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-amber/70 mb-2">Situation Report</p>
+            <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-4 text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+              {recap.narrative}
+            </div>
+          </div>
+        )}
+
+        {/* Events feed */}
+        {recap.events.length > 0 && (
+          <div className="mt-5">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-amber/70 mb-2">Intelligence Feed</p>
+            <div className="max-h-48 overflow-y-auto rounded border border-slate-700/60 bg-warroom-blue/20 divide-y divide-slate-700/40">
+              {recap.events.map((ev, i) => (
+                <div key={i} className="px-4 py-2 text-sm text-slate-300">
+                  <span className="text-warroom-amber mr-2 text-xs font-mono">{String(i + 1).padStart(2, '0')}</span>
+                  {ev}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Standings table */}
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-amber/70">Global Standings</p>
+            <div className="flex gap-4 text-[10px] text-slate-500">
+              {topMover && topMover.delta > 0 && <span>Top mover: <span className="text-emerald-400">{topMover.nation_name} (+{topMover.delta})</span></span>}
+              {biggestDrop && biggestDrop.delta < 0 && <span>Biggest drop: <span className="text-red-400">{biggestDrop.nation_name} ({biggestDrop.delta})</span></span>}
+            </div>
+          </div>
+          <div className="overflow-hidden rounded border border-slate-700/60">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-800/60 text-[10px] uppercase tracking-widest text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left">#</th>
+                  <th className="px-3 py-2 text-left">Nation</th>
+                  <th className="px-3 py-2 text-right">Score</th>
+                  <th className="px-3 py-2 text-right">Change</th>
+                  <th className="px-3 py-2 text-right">Escalation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/40">
+                {recap.standings.map((s, i) => (
+                  <tr key={s.team_id}>
+                    <td className="px-3 py-1.5 text-warroom-amber font-pixel text-xs">{i + 1}</td>
+                    <td className="px-3 py-1.5 text-slate-200">{s.nation_name}</td>
+                    <td className="px-3 py-1.5 text-right text-slate-200">{s.score}</td>
+                    <td className={`px-3 py-1.5 text-right font-semibold ${s.delta > 0 ? 'text-emerald-400' : s.delta < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                      {s.delta > 0 ? '+' : ''}{s.delta}
+                    </td>
+                    <td className={`px-3 py-1.5 text-right ${s.escalation > 20 ? 'text-red-400' : s.escalation > 10 ? 'text-warroom-amber' : 'text-slate-400'}`}>
+                      {s.escalation}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* World state */}
+        <div className="mt-5 flex items-center justify-between rounded border border-slate-700/40 bg-warroom-blue/20 px-4 py-3 text-sm">
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">Global Escalation:</span>
+            <span className={`font-semibold ${recap.world.total_escalation >= 60 ? 'text-red-400' : recap.world.total_escalation >= 40 ? 'text-warroom-amber' : 'text-slate-300'}`}>
+              {recap.world.total_escalation}
+            </span>
+          </div>
+          {recap.world.nuke_unlocked && (
+            <span className="text-[10px] uppercase tracking-widest text-red-400 font-semibold animate-pulse">Nuclear weapons unlocked</span>
+          )}
+        </div>
+
+        {/* Close button */}
+        <div className="mt-6 flex justify-center">
+          <button
+            className="rounded border border-warroom-amber/50 bg-warroom-amber/10 px-8 py-2.5 text-sm uppercase tracking-widest text-warroom-amber hover:bg-warroom-amber/20 font-semibold"
+            onClick={onClose}
+          >
+            Proceed to Round {recap.round_number + 1}
+          </button>
+        </div>
       </div>
     </div>
   )

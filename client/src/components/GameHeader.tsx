@@ -17,12 +17,13 @@ type Props = {
   onViewNations: () => void
   onViewMega: () => void
   onViewHelp: () => void
+  onViewRecap?: () => void
 }
 
 export function GameHeader({
   nationName, role, connected, timer, timerDisplay, timerProgress,
   totalEscalation, nextThreshold, megaChallenge, timerState,
-  onViewBriefing, onViewNations, onViewMega, onViewHelp,
+  onViewBriefing, onViewNations, onViewMega, onViewHelp, onViewRecap,
 }: Props) {
   const statusChip = (() => {
     switch (timerState) {
@@ -64,6 +65,9 @@ export function GameHeader({
           <div className="flex gap-2 justify-end">
             <button className="rounded border border-warroom-cyan/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-warroom-cyan hover:border-warroom-cyan" onClick={onViewBriefing}>View Briefing</button>
             <button className="rounded border border-warroom-amber/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-warroom-amber hover:border-warroom-amber" onClick={onViewNations}>Nations Intel</button>
+            {onViewRecap && (
+              <button className="rounded border border-warroom-amber/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-warroom-amber hover:border-warroom-amber" onClick={onViewRecap}>Last Round</button>
+            )}
             {megaChallenge?.active && (
               <button className="rounded border border-purple-400/40 bg-warroom-blue/60 px-3 py-1 text-xs font-semibold text-purple-400 hover:border-purple-400" onClick={onViewMega}>Mega Challenge</button>
             )}

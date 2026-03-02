@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 
 from ..data.actions import ACTIONS, ACTION_LOOKUP
 from ..extensions import db, socketio, limiter
-from ..models import ActionProposal, Team, IntelDrop, ActionVote, NewsEvent, Action, FalseFlagPlan, MegaChallenge, MegaChallengeSolve, Lifeline, User, Round
+from ..models import ActionProposal, Team, IntelDrop, ActionVote, NewsEvent, Action, FalseFlagPlan, MegaChallenge, MegaChallengeSolve, Lifeline, User, Round, OutcomeScoreHistory
 from ..services.rounds import get_active_round, list_team_proposals
 from ..services.leaderboard import compute_outcome_scores
 from ..services.team_assignment import assign_team_for_user
@@ -893,3 +893,118 @@ def use_phone_a_friend():
 
     db.session.commit()
     return jsonify({"hint": hint})
+
+
+# ---------------------------------------------------------------------------
+# Round Recap
+# ---------------------------------------------------------------------------
+
+@game_bp.get("/recap")
+@login_required
+def round_recap():
+    """Return a debrief for the most recently resolved round."""
+    round_num = request.args.get("round", type=int)
+    if round_num:
+        resolved = Round.query.filter_by(round_number=round_num, status="resolved").first()
+    else:
+        resolved = Round.query.filter_by(status="resolved").order_by(Round.round_number.desc()).first()
+
+    if not resolved:
+        return jsonify({"recap": None})
+
+    teams = {t.id: t for t in Team.query.all()}
+
+    # --- News events from this round's time window ---
+    events: list[str] = []
+    if resolved.started_at and resolved.ended_at:
+        news_rows = (
+            NewsEvent.query
+            .filter(NewsEvent.created_at.between(resolved.started_at, resolved.ended_at))
+            .order_by(NewsEvent.created_at.asc())
+            .all()
+        )
+        events = [n.message for n in news_rows]
+
+    # --- Standings with deltas ---
+    cur_scores = {
+        s.team_id: s.outcome_score
+        for s in OutcomeScoreHistory.query.filter_by(round_id=resolved.id).all()
+    }
+    prev_round = Round.query.filter_by(
+        round_number=resolved.round_number - 1, status="resolved"
+    ).first()
+    prev_scores: dict[int, int] = {}
+    if prev_round:
+        prev_scores = {
+            s.team_id: s.outcome_score
+            for s in OutcomeScoreHistory.query.filter_by(round_id=prev_round.id).all()
+        }
+
+    standings = []
+    for t in sorted(teams.values(), key=lambda t: cur_scores.get(t.id, 0), reverse=True):
+        baseline = t.baseline_prosperity + t.baseline_security + t.baseline_influence
+        score = cur_scores.get(t.id, baseline)
+        prev = prev_scores.get(t.id, baseline)
+        standings.append({
+            "team_id": t.id,
+            "nation_name": t.nation_name,
+            "score": score,
+            "delta": score - prev,
+            "escalation": t.current_escalation,
+        })
+
+    # --- Requesting player's own team breakdown ---
+    my_team = teams.get(current_user.team_id) if current_user.team_id else None
+    my_stats = None
+    my_actions: list[dict] = []
+    if my_team:
+        my_stats = {
+            "prosperity": my_team.baseline_prosperity + my_team.current_prosperity,
+            "security": my_team.baseline_security + my_team.current_security,
+            "influence": my_team.baseline_influence + my_team.current_influence,
+            "escalation": my_team.current_escalation,
+        }
+        for act in Action.query.filter_by(round_id=resolved.id, team_id=my_team.id).all():
+            adef = ACTION_LOOKUP.get(act.action_code)
+            target = teams.get(act.target_team_id) if act.target_team_id else None
+            my_actions.append({
+                "slot": act.action_slot,
+                "action_name": adef.name if adef else act.action_code,
+                "category": adef.category if adef else "unknown",
+                "target": target.nation_name if target else None,
+                "success": act.success,
+            })
+
+    # --- Aggregate action stats (public, no actor revealed) ---
+    all_actions = Action.query.filter_by(round_id=resolved.id).all()
+    total_actions = len(all_actions)
+    total_success = sum(1 for a in all_actions if a.success)
+    category_counts: dict[str, int] = {}
+    for a in all_actions:
+        adef = ACTION_LOOKUP.get(a.action_code)
+        cat = adef.category if adef else "unknown"
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+
+    return jsonify({
+        "recap": {
+            "round_number": resolved.round_number,
+            "narrative": resolved.narrative or "",
+            "events": events,
+            "standings": standings,
+            "my_stats": my_stats,
+            "my_actions": my_actions,
+            "summary": {
+                "total_actions": total_actions,
+                "successful": total_success,
+                "failed": total_actions - total_success,
+                "by_category": category_counts,
+            },
+            "world": {
+                "total_escalation": sum(t.current_escalation for t in teams.values()),
+                "nuke_unlocked": any(
+                    a.action_code == "NUKE_LOCK" and a.success
+                    for a in all_actions
+                ),
+            },
+        },
+    })

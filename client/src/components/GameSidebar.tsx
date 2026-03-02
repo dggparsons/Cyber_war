@@ -1,34 +1,52 @@
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import type { LeaderboardResponse, RevealData, HistoryEntry } from '../lib/api'
 import type { GameState } from '../lib/gameUtils'
 import { NATION_COLORS } from '../lib/gameUtils'
-import { ChatComposer } from './ChatComposer'
 import { RevealView } from './RevealView'
+import { DiplomacyPanel } from './DiplomacyPanel'
+import { IntelPanel } from './IntelPanel'
+import type { MegaChallengeData } from '../lib/api'
+import type { IntelDropItem } from './modals'
 
-type ChatMessage = { display_name: string; content: string; role?: string }
-type TypingUser = { display_name: string }
+type DiplomacyProps = {
+  teamId: number
+  channels: any[]
+  drafts: Record<number, string>
+  target: number | ''
+  unread: number
+  teamOptions: Array<{ team_id: number; nation_name: string }>
+  alliances: any[]
+  leaderboard: LeaderboardResponse | null
+  onTargetChange: (val: number | '') => void
+  onStart: () => void
+  onSend: (channelId: number) => void
+  onDraftChange: (channelId: number, val: string) => void
+  onRespond: (channelId: number, action: 'accept' | 'decline') => void
+  onClick: () => void
+}
+
+type IntelProps = {
+  drops: Array<{ id: number; title: string; description: string; reward: string; status: string }>
+  megaChallenge: MegaChallengeData | null
+  onSelectIntel: (intel: IntelDropItem) => void
+  onOpenMega: () => void
+}
 
 type Props = {
   data: GameState
   leaderboard: LeaderboardResponse | null
-  messages: ChatMessage[]
-  typingUsers: TypingUser[]
-  sendMessage: (msg: string) => void
-  sendTyping: (typing: boolean) => void
-  chatCollapsed: boolean
-  onToggleChat: () => void
   historyEntries: HistoryEntry[]
   shouldShowReveal: boolean
   revealData: RevealData | null
+  diplomacy: DiplomacyProps
+  intel: IntelProps
 }
 
 export function GameSidebar({
-  data, leaderboard, messages, typingUsers, sendMessage, sendTyping,
-  chatCollapsed, onToggleChat,
-  historyEntries, shouldShowReveal, revealData,
+  data, leaderboard,
+  historyEntries, shouldShowReveal, revealData, diplomacy, intel,
 }: Props) {
-  const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Build escalation chart data from leaderboard.escalation_series
   const escalationChartData = useMemo(() => {
@@ -103,43 +121,31 @@ export function GameSidebar({
         </ul>
       </div>
 
-      {/* Team Chat */}
-      <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 flex flex-col gap-3 min-h-[300px]">
-        <div className="flex items-center justify-between">
-          <h3 className="font-pixel text-xs text-warroom-cyan">Team Comms</h3>
-          <button className="text-[10px] text-slate-400 hover:text-slate-200" onClick={onToggleChat}>
-            {chatCollapsed ? 'Expand' : 'Collapse'}
-          </button>
-        </div>
-        {!chatCollapsed && (
-          <>
-            <div className="flex-1 overflow-y-auto rounded border border-slate-700/60 bg-warroom-blue/40 p-3 text-sm text-slate-300 min-h-[200px]">
-              {messages.map((line, idx) => (
-                <p key={idx}>
-                  <span className={
-                    line.role === 'gm' || line.role === 'admin' ? 'text-red-400 font-semibold' :
-                    line.role === 'advisor' ? 'text-warroom-amber' :
-                    'text-warroom-cyan'
-                  }>{line.display_name}:</span> {line.content}
-                </p>
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-            {typingUsers.length > 0 && (
-              <p className="text-[10px] text-slate-400 italic">
-                {typingUsers.map((u) => u.display_name).join(', ')} typing...
-              </p>
-            )}
-            <ChatComposer onSend={sendMessage} onTyping={sendTyping} />
-          </>
-        )}
-      </div>
+      {/* Diplomacy */}
+      <DiplomacyPanel
+        teamId={diplomacy.teamId}
+        diplomacyChannels={diplomacy.channels}
+        diplomacyDrafts={diplomacy.drafts}
+        diplomacyTarget={diplomacy.target}
+        diplomacyUnread={diplomacy.unread}
+        teamOptions={diplomacy.teamOptions}
+        alliances={diplomacy.alliances}
+        leaderboard={diplomacy.leaderboard}
+        onDiplomacyTargetChange={diplomacy.onTargetChange}
+        onStartDiplomacy={diplomacy.onStart}
+        onSendDiplomacy={diplomacy.onSend}
+        onDiplomacyDraftChange={diplomacy.onDraftChange}
+        onRespondDiplomacy={diplomacy.onRespond}
+        onDiplomacyClick={diplomacy.onClick}
+      />
 
-      {/* World News */}
-      <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200">
-        <h3 className="font-pixel text-xs text-warroom-cyan">World News</h3>
-        <p className="mt-2 text-slate-300">{data.narrative}</p>
-      </div>
+      {/* Intel Drops */}
+      <IntelPanel
+        intelDrops={intel.drops}
+        megaChallenge={intel.megaChallenge}
+        onSelectIntel={intel.onSelectIntel}
+        onOpenMega={intel.onOpenMega}
+      />
 
       {/* Reveal */}
       {shouldShowReveal && revealData && (

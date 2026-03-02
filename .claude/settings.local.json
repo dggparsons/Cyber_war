@@ -24,7 +24,8 @@
       "WebSearch",
       "Bash(ls:*)",
       "Bash(do wc:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(./node_modules/.bin/tsc:*)"
     ]
   }
 }

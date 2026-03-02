@@ -365,6 +365,23 @@ export async function usePhoneAFriend(): Promise<{ hint: { team_name: string; ac
   return apiFetch('/api/game/lifelines/phone-a-friend', { method: 'POST' })
 }
 
+// Round Recap
+export type RoundRecap = {
+  round_number: number
+  narrative: string
+  events: string[]
+  standings: Array<{ team_id: number; nation_name: string; score: number; delta: number; escalation: number }>
+  my_stats: { prosperity: number; security: number; influence: number; escalation: number } | null
+  my_actions: Array<{ slot: number; action_name: string; category: string; target: string | null; success: boolean }>
+  summary: { total_actions: number; successful: number; failed: number; by_category: Record<string, number> }
+  world: { total_escalation: number; nuke_unlocked: boolean }
+}
+
+export async function fetchRoundRecap(roundNumber?: number): Promise<{ recap: RoundRecap | null }> {
+  const qs = roundNumber ? `?round=${roundNumber}` : ''
+  return apiFetch(`/api/game/recap${qs}`, { method: 'GET' })
+}
+
 // Admin: Mega Challenge
 export async function adminCreateMegaChallenge(description: string, solution: string, reward_tiers?: number[]) {
   return apiFetch('/api/admin/mega-challenge', {

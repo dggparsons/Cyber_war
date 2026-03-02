@@ -3,7 +3,6 @@ import './App.css'
 import {
   fetchGameState,
   fetchSession,
-  type SessionResponse,
   fetchLeaderboard,
   fetchRevealData,
   fetchActions,
@@ -31,6 +30,8 @@ import {
   type HistoryEntry,
   type ProposalPreview,
   type MegaChallengeData,
+  type RoundRecap,
+  fetchRoundRecap,
 } from './lib/api'
 import { useChat } from './hooks/useChat'
 import { useRoundTimer, type RoundTimer } from './hooks/useRoundTimer'
@@ -47,7 +48,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthPanel } from './components/AuthPanel'
 import { SpectatorView } from './components/SpectatorView'
 import { AdminPanel } from './components/AdminPanel'
-import { BriefingModal, NationsModal, HowToPlayModal, IntelModal, MegaChallengeModal, type IntelDropItem } from './components/modals'
+import { BriefingModal, NationsModal, HowToPlayModal, IntelModal, MegaChallengeModal, RoundRecapModal, type IntelDropItem } from './components/modals'
 import { DoomOverlay, CrisisAlert, EscalationAlert } from './components/overlays'
 import { NewsTicker } from './components/NewsTicker'
 import { GameHeader } from './components/GameHeader'
@@ -58,6 +59,7 @@ import { PeaceCouncilPanel } from './components/PeaceCouncilPanel'
 import { GameSidebar } from './components/GameSidebar'
 import { DiplomacyPanel } from './components/DiplomacyPanel'
 import { AdvisorsPanel } from './components/AdvisorsPanel'
+import { ChatComposer } from './components/ChatComposer'
 
 const viewMode = new URLSearchParams(window.location.search).get('view') ?? 'player'
 
@@ -97,6 +99,8 @@ function App() {
   const [selectedIntel, setSelectedIntel] = useState<IntelDropItem | null>(null)
   const [isMegaOpen, setIsMegaOpen] = useState(false)
   const [phoneHint, setPhoneHint] = useState<{ team_name: string; action_name: string; slot: number } | null>(null)
+  const [roundRecap, setRoundRecap] = useState<RoundRecap | null>(null)
+  const [isRecapOpen, setIsRecapOpen] = useState(false)
   const [toasts, setToasts] = useState<Array<{ id: number; message: string; type: 'info' | 'warning' | 'error' }>>([])
   const toastIdRef = useRef(0)
   const addToast = useCallback((message: string, type: 'info' | 'warning' | 'error' = 'info') => {
@@ -107,6 +111,7 @@ function App() {
   const [chatCollapsed, setChatCollapsed] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
+  const hasShownBriefingRef = useRef(false)
   const isUN = Boolean(data?.team && ((data.team.team_type ?? '').toLowerCase() === 'un' || data.team.nation_code === 'UN'))
   const timer = useRoundTimer(timerSeed)
   const effectiveGlobal = globalState ?? data?.global ?? leaderboard?.global ?? DEFAULT_GLOBAL_STATE
@@ -152,7 +157,15 @@ function App() {
       setStatus('ready')
       setAuthRequired(false)
       setTimerSeed(gameState.timer)
-      setIsBriefingOpen(true)
+      if (!hasShownBriefingRef.current) {
+        hasShownBriefingRef.current = true
+        const key = `cyberwar_seen_howtoplay_${gameState.team.id}`
+        if (!localStorage.getItem(key)) {
+          setIsHelpOpen(true)          // first-ever login for this user → how-to-play first
+        } else {
+          setIsBriefingOpen(true)      // returning player → straight to briefing
+        }
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setAuthRequired(true)
@@ -382,6 +395,18 @@ function App() {
       playCue(260 + payload.threshold, 0.35)
     }
     const resetHandler = () => {
+      hasShownBriefingRef.current = false
+      loadGameState()
+    }
+    const roundStartedHandler = () => {
+      // New round started → fetch recap of the just-resolved round
+      fetchRoundRecap().then((res) => {
+        if (res.recap) {
+          setRoundRecap(res.recap)
+          setIsRecapOpen(true)
+        }
+      }).catch(console.error)
+      // Also refresh game state for the new round
       loadGameState()
     }
     socket.on('game:nuke_state', nukeHandler)
@@ -391,6 +416,7 @@ function App() {
     socket.on('news:event', newsHandler)
     socket.on('escalation:threshold', escalationHandler)
     socket.on('game:reset', resetHandler)
+    socket.on('round:started', roundStartedHandler)
     return () => {
       socket.off('game:nuke_state', nukeHandler)
       socket.off('game:over', doomHandler)
@@ -399,6 +425,7 @@ function App() {
       socket.off('news:event', newsHandler)
       socket.off('escalation:threshold', escalationHandler)
       socket.off('game:reset', resetHandler)
+      socket.off('round:started', roundStartedHandler)
     }
   }, [authRequired, playCue, loadGameState])
 
@@ -661,11 +688,20 @@ function App() {
         onViewNations={() => setIsNationsOpen(true)}
         onViewMega={() => setIsMegaOpen(true)}
         onViewHelp={() => setIsHelpOpen(true)}
+        onViewRecap={roundRecap ? () => setIsRecapOpen(true) : undefined}
       />
 
+      {isRecapOpen && roundRecap && <RoundRecapModal recap={roundRecap} onClose={() => setIsRecapOpen(false)} />}
       {isBriefingOpen && <BriefingModal briefing={data.briefing} onClose={() => setIsBriefingOpen(false)} />}
       {isNationsOpen && <NationsModal myTeamId={data.team.id} entries={leaderboard?.entries ?? []} alliances={data.alliances} diplomacyChannels={diplomacyChannels} onClose={() => setIsNationsOpen(false)} />}
-      {isHelpOpen && <HowToPlayModal onClose={() => setIsHelpOpen(false)} />}
+      {isHelpOpen && <HowToPlayModal onClose={() => {
+        setIsHelpOpen(false)
+        const key = data ? `cyberwar_seen_howtoplay_${data.team.id}` : ''
+        if (key && !localStorage.getItem(key)) {
+          localStorage.setItem(key, '1')
+          setIsBriefingOpen(true)   // chain into briefing after first how-to-play
+        }
+      }} />}
       {selectedIntel && (
         <IntelModal
           intel={selectedIntel}
@@ -687,56 +723,67 @@ function App() {
 
       <main className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[3fr_1fr]">
         <div className="space-y-4">
-          {/* Top row: Action Console + Diplomacy & Advisors side by side */}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <ActionConsole
-              nukeUnlocked={nukeUnlocked}
-              doomActive={doomActive}
-              activeCrisis={activeCrisis}
-              availableActions={availableActions}
-              actions={actions}
-              activeProposals={activeProposals}
-              selection={selection}
-              targets={targets}
-              teamOptions={teamOptions}
-              falseFlagCount={falseFlagCount}
-              falseFlagTargets={falseFlagTargets}
-              isCaptain={isCaptain}
-              onSelectionChange={handleSelectionChange}
-              onTargetChange={handleTargetChange}
-              onSubmitProposal={handleSubmitProposal}
-              onVote={handleVote}
-              onApplyFalseFlag={handleApplyFalseFlag}
-              onFalseFlagTargetChange={(pid, val) => setFalseFlagTargets((prev) => ({ ...prev, [pid]: val }))}
-              onCaptainOverride={handleCaptainOverride}
-            />
-            <div className="space-y-4">
-              <DiplomacyPanel
-                teamId={data.team.id}
-                diplomacyChannels={diplomacyChannels}
-                diplomacyDrafts={diplomacyDrafts}
-                diplomacyTarget={diplomacyTarget}
-                diplomacyUnread={diplomacyUnread}
-                teamOptions={teamOptions}
-                alliances={data.alliances}
-                leaderboard={leaderboard}
-                onDiplomacyTargetChange={(val) => setDiplomacyTarget(val)}
-                onStartDiplomacy={handleStartDiplomacy}
-                onSendDiplomacy={handleSendDiplomacy}
-                onDiplomacyDraftChange={(channelId, val) => setDiplomacyDrafts((prev) => ({ ...prev, [channelId]: val }))}
-                onRespondDiplomacy={handleRespondDiplomacy}
-                onDiplomacyClick={() => setDiplomacyUnread(0)}
-              />
-              <AdvisorsPanel advisors={data.advisors} />
-            </div>
+          {/* World News */}
+          <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200">
+            <h3 className="font-pixel text-xs text-warroom-cyan">World News</h3>
+            <p className="mt-2 text-slate-300">{data.narrative}</p>
           </div>
 
-          <IntelPanel
-            intelDrops={data.intel_drops}
-            megaChallenge={megaChallenge}
-            onSelectIntel={setSelectedIntel}
-            onOpenMega={() => setIsMegaOpen(true)}
+          <ActionConsole
+            nukeUnlocked={nukeUnlocked}
+            doomActive={doomActive}
+            activeCrisis={activeCrisis}
+            availableActions={availableActions}
+            actions={actions}
+            activeProposals={activeProposals}
+            selection={selection}
+            targets={targets}
+            teamOptions={teamOptions}
+            falseFlagCount={falseFlagCount}
+            falseFlagTargets={falseFlagTargets}
+            isCaptain={isCaptain}
+            onSelectionChange={handleSelectionChange}
+            onTargetChange={handleTargetChange}
+            onSubmitProposal={handleSubmitProposal}
+            onVote={handleVote}
+            onApplyFalseFlag={handleApplyFalseFlag}
+            onFalseFlagTargetChange={(pid, val) => setFalseFlagTargets((prev) => ({ ...prev, [pid]: val }))}
+            onCaptainOverride={handleCaptainOverride}
           />
+
+          {/* Team Chat — full width under action console */}
+          <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-pixel text-xs text-warroom-cyan">Team Comms</h3>
+              <button className="text-[10px] text-slate-400 hover:text-slate-200" onClick={() => setChatCollapsed(!chatCollapsed)}>
+                {chatCollapsed ? 'Expand' : 'Collapse'}
+              </button>
+            </div>
+            {!chatCollapsed && (
+              <>
+                <div className="overflow-y-auto rounded border border-slate-700/60 bg-warroom-blue/40 p-3 text-sm text-slate-300 max-h-48 min-h-[120px]">
+                  {messages.map((line, idx) => (
+                    <p key={idx}>
+                      <span className={
+                        line.role === 'gm' || line.role === 'admin' ? 'text-red-400 font-semibold' :
+                        line.role === 'advisor' ? 'text-warroom-amber' :
+                        'text-warroom-cyan'
+                      }>{line.display_name}:</span> {line.content}
+                    </p>
+                  ))}
+                  <div ref={chatEndRef} />
+                </div>
+                {typingUsers.length > 0 && (
+                  <p className="text-[10px] text-slate-400 italic">
+                    {typingUsers.map((u) => u.display_name).join(', ')} typing...
+                  </p>
+                )}
+                <ChatComposer onSend={sendMessage} onTyping={sendTyping} />
+              </>
+            )}
+          </div>
+
+          <AdvisorsPanel advisors={data.advisors} />
 
           <LifelinesPanel
             lifelines={lifelines}
@@ -756,15 +803,31 @@ function App() {
         <GameSidebar
           data={data}
           leaderboard={leaderboard}
-          messages={messages}
-          typingUsers={typingUsers}
-          sendMessage={sendMessage}
-          sendTyping={sendTyping}
-          chatCollapsed={chatCollapsed}
-          onToggleChat={() => setChatCollapsed(!chatCollapsed)}
           historyEntries={historyEntries}
+          intel={{
+            drops: data.intel_drops,
+            megaChallenge,
+            onSelectIntel: setSelectedIntel,
+            onOpenMega: () => setIsMegaOpen(true),
+          }}
           shouldShowReveal={shouldShowReveal}
           revealData={revealData}
+          diplomacy={{
+            teamId: data.team.id,
+            channels: diplomacyChannels,
+            drafts: diplomacyDrafts,
+            target: diplomacyTarget,
+            unread: diplomacyUnread,
+            teamOptions,
+            alliances: data.alliances,
+            leaderboard,
+            onTargetChange: (val) => setDiplomacyTarget(val),
+            onStart: handleStartDiplomacy,
+            onSend: handleSendDiplomacy,
+            onDraftChange: (channelId, val) => setDiplomacyDrafts((prev) => ({ ...prev, [channelId]: val })),
+            onRespond: handleRespondDiplomacy,
+            onClick: () => setDiplomacyUnread(0),
+          }}
         />
       </main>
     </div>
