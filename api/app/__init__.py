@@ -21,6 +21,9 @@ from .services.schema import ensure_team_columns, ensure_global_state_columns, e
 
 def create_app(env_name: str | None = None) -> Flask:
     """Application factory used by both CLI and WSGI servers."""
+    from dotenv import load_dotenv
+    load_dotenv()
+
     app = Flask(__name__, instance_relative_config=True)
 
     config_obj = get_config(env_name)

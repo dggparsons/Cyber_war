@@ -1,140 +1,151 @@
-"""Pool of small intel-drop puzzles auto-assigned each round.
+"""Pool of intel-drop puzzles auto-assigned each round.
+
+Each puzzle is TWO stages:
+  Stage 1 — Technical decode (base64, hex, cipher, XOR, etc.)
+  Stage 2 — The decoded text is a riddle requiring domain knowledge
 
 Each puzzle has:
   puzzle_type  — category label shown in the UI
-  clue         — the text the player sees
+  clue         — the text the player sees (encoded payload + context)
   solution     — plaintext answer (case-insensitive matching)
   reward       — lifeline type awarded on solve
 """
 from __future__ import annotations
 
 INTEL_PUZZLE_POOL: list[dict] = [
-    # ── Base64 ────────────────────────────────────────────────
-    {"puzzle_type": "Signal Intercept", "clue": "Decoded radio burst (Base64):\n\n`U0hBRE9X`", "solution": "SHADOW", "reward": "phone_a_friend"},
-    {"puzzle_type": "Signal Intercept", "clue": "Intercepted satellite uplink (Base64):\n\n`RklSRVdBTEw=`", "solution": "FIREWALL", "reward": "false_flag"},
-    {"puzzle_type": "Signal Intercept", "clue": "Encrypted field report (Base64):\n\n`QkFDS0RPT1I=`", "solution": "BACKDOOR", "reward": "phone_a_friend"},
-    {"puzzle_type": "Signal Intercept", "clue": "Captured beacon payload (Base64):\n\n`VFJPSkFO`", "solution": "TROJAN", "reward": "false_flag"},
-    {"puzzle_type": "Signal Intercept", "clue": "Decoded embassy cable (Base64):\n\n`QUxMSUFOQ0U=`", "solution": "ALLIANCE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Signal Intercept", "clue": "Encrypted logistics channel (Base64):\n\n`U1RSSUtF`", "solution": "STRIKE", "reward": "false_flag"},
-    {"puzzle_type": "Signal Intercept", "clue": "Monitoring station capture (Base64):\n\n`UEhJU0hJTkc=`", "solution": "PHISHING", "reward": "phone_a_friend"},
-    {"puzzle_type": "Signal Intercept", "clue": "Covert ops broadcast (Base64):\n\n`UkFOU09N`", "solution": "RANSOM", "reward": "false_flag"},
-    {"puzzle_type": "Signal Intercept", "clue": "Compromised relay (Base64):\n\n`Wk9NQklF`", "solution": "ZOMBIE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Signal Intercept", "clue": "Deep-cover agent burst (Base64):\n\n`U0FOQ1RJT04=`", "solution": "SANCTION", "reward": "false_flag"},
 
-    # ── Hex ───────────────────────────────────────────────────
-    {"puzzle_type": "Memory Dump", "clue": "Extracted from RAM dump:\n\n`4D414C57415245`", "solution": "MALWARE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Memory Dump", "clue": "Found in process memory:\n\n`50415443484544`", "solution": "PATCHED", "reward": "false_flag"},
-    {"puzzle_type": "Memory Dump", "clue": "Registry artifact:\n\n`524F4F544B4954`", "solution": "ROOTKIT", "reward": "phone_a_friend"},
-    {"puzzle_type": "Memory Dump", "clue": "Kernel memory string:\n\n`534E4946464552`", "solution": "SNIFFER", "reward": "false_flag"},
-    {"puzzle_type": "Memory Dump", "clue": "Debug log extract:\n\n`5041594C4F4144`", "solution": "PAYLOAD", "reward": "phone_a_friend"},
-    {"puzzle_type": "Memory Dump", "clue": "Stack trace artifact:\n\n`455850 4C4F4954`", "solution": "EXPLOIT", "reward": "false_flag"},
-    {"puzzle_type": "Memory Dump", "clue": "Firmware image hex:\n\n`434F424 14C54`", "solution": "COBALT", "reward": "phone_a_friend"},
-    {"puzzle_type": "Memory Dump", "clue": "Network buffer capture:\n\n`5448524541 54`", "solution": "THREAT", "reward": "false_flag"},
-    {"puzzle_type": "Memory Dump", "clue": "Swap partition recovery:\n\n`564F4C54414745`", "solution": "VOLTAGE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Memory Dump", "clue": "Heap spray fragment:\n\n`43495048 4552`", "solution": "CIPHER", "reward": "false_flag"},
-
-    # ── Caesar Cipher (shift 3) ───────────────────────────────
-    {"puzzle_type": "Cipher Intercept", "clue": "Shift cipher detected (ROT-3):\n\n`EUHDFK`", "solution": "BREACH", "reward": "phone_a_friend"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Encrypted field note (ROT-3):\n\n`GHIHQVH`", "solution": "DEFENSE", "reward": "false_flag"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Agent dead-drop (ROT-3):\n\n`VKLHOG`", "solution": "SHIELD", "reward": "phone_a_friend"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Embassy cipher (ROT-3):\n\n`VXUYHLOODQFH`", "solution": "SURVEILLANCE", "reward": "false_flag"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Border patrol intercept (ROT-3):\n\n`GHWHFW`", "solution": "DETECT", "reward": "phone_a_friend"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Classified memo (ROT-3):\n\n`SUREH`", "solution": "PROBE", "reward": "false_flag"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Covert channel (ROT-3):\n\n`YHFWRU`", "solution": "VECTOR", "reward": "phone_a_friend"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Tactical dispatch (ROT-3):\n\n`DQRPDOB`", "solution": "ANOMALY", "reward": "false_flag"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Intelligence briefing (ROT-3):\n\n`SLYRW`", "solution": "PIVOT", "reward": "phone_a_friend"},
-    {"puzzle_type": "Cipher Intercept", "clue": "Field operative note (ROT-3):\n\n`IRUHQVLFV`", "solution": "FORENSICS", "reward": "false_flag"},
-
-    # ── Binary ────────────────────────────────────────────────
-    {"puzzle_type": "Binary Fragment", "clue": "Recovered from corrupted drive:\n\n`01000001 01010100 01010100 01000001 01000011 01001011`", "solution": "ATTACK", "reward": "phone_a_friend"},
-    {"puzzle_type": "Binary Fragment", "clue": "Embedded in firmware:\n\n`01000100 01000101 01001110 01011001`", "solution": "DENY", "reward": "false_flag"},
-    {"puzzle_type": "Binary Fragment", "clue": "Steganography extract:\n\n`01010011 01010000 01001111 01001111 01000110`", "solution": "SPOOF", "reward": "phone_a_friend"},
-    {"puzzle_type": "Binary Fragment", "clue": "Boot sector artifact:\n\n`01010111 01001111 01010010 01001101`", "solution": "WORM", "reward": "false_flag"},
-    {"puzzle_type": "Binary Fragment", "clue": "BIOS dump extract:\n\n`01010000 01001000 01000001 01010011 01000101`", "solution": "PHASE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Binary Fragment", "clue": "Flash memory recovery:\n\n`01000100 01000101 01000011 01001111 01011001`", "solution": "DECOY", "reward": "false_flag"},
-    {"puzzle_type": "Binary Fragment", "clue": "Radio protocol bits:\n\n`01001010 01000001 01001101`", "solution": "JAM", "reward": "phone_a_friend"},
-    {"puzzle_type": "Binary Fragment", "clue": "Satellite telemetry:\n\n`01010010 01000101 01000011 01001111 01001110`", "solution": "RECON", "reward": "false_flag"},
-    {"puzzle_type": "Binary Fragment", "clue": "USB implant payload:\n\n`01000010 01001100 01001111 01000011 01001011`", "solution": "BLOCK", "reward": "phone_a_friend"},
-    {"puzzle_type": "Binary Fragment", "clue": "Drone control packet:\n\n`01000001 01000010 01001111 01010010 01010100`", "solution": "ABORT", "reward": "false_flag"},
-
-    # ── URL Encode ────────────────────────────────────────────
-    {"puzzle_type": "Web Traffic", "clue": "Suspicious GET parameter:\n\n`%41%43%43%45%53%53`", "solution": "ACCESS", "reward": "phone_a_friend"},
-    {"puzzle_type": "Web Traffic", "clue": "Hidden form field value:\n\n`%49%4E%4A%45%43%54`", "solution": "INJECT", "reward": "false_flag"},
-    {"puzzle_type": "Web Traffic", "clue": "Exfil URL path segment:\n\n`%54%55%4E%4E%45%4C`", "solution": "TUNNEL", "reward": "phone_a_friend"},
-    {"puzzle_type": "Web Traffic", "clue": "Cookie value decoded:\n\n`%42%59%50%41%53%53`", "solution": "BYPASS", "reward": "false_flag"},
-    {"puzzle_type": "Web Traffic", "clue": "API key fragment:\n\n`%54%4F%4B%45%4E`", "solution": "TOKEN", "reward": "phone_a_friend"},
-    {"puzzle_type": "Web Traffic", "clue": "Redirect chain terminal:\n\n`%50%48%41%4E%54%4F%4D`", "solution": "PHANTOM", "reward": "false_flag"},
-    {"puzzle_type": "Web Traffic", "clue": "POST body decode:\n\n`%53%50%4C%49%43%45`", "solution": "SPLICE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Web Traffic", "clue": "WebSocket payload:\n\n`%42%45%41%43%4F%4E`", "solution": "BEACON", "reward": "false_flag"},
-    {"puzzle_type": "Web Traffic", "clue": "DNS TXT record value:\n\n`%4F%52%41%43%4C%45`", "solution": "ORACLE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Web Traffic", "clue": "Proxy log artifact:\n\n`%53%48%45%4C%4C`", "solution": "SHELL", "reward": "false_flag"},
-
-    # ── Reverse String ────────────────────────────────────────
-    {"puzzle_type": "Obfuscated Log", "clue": "Reversed string found in syslog:\n\n`ROODKCAB`", "solution": "BACKDOOR", "reward": "phone_a_friend"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Mirror text in crash dump:\n\n`TIOLPXE`", "solution": "EXPLOIT", "reward": "false_flag"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Inverted auth log entry:\n\n`HCNUAL`", "solution": "LAUNCH", "reward": "phone_a_friend"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Reversed DNS query:\n\n`RETLIF`", "solution": "FILTER", "reward": "false_flag"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Flipped audit trail:\n\n`KCOLDAED`", "solution": "DEADLOCK", "reward": "phone_a_friend"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Reversed process name:\n\n`TSOHG`", "solution": "GHOST", "reward": "false_flag"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Mirror malware sample:\n\n`ERIF`", "solution": "FIRE", "reward": "phone_a_friend"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Inverted C2 beacon:\n\n`ROTINOM`", "solution": "MONITOR", "reward": "false_flag"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Reversed registry key:\n\n`TPYRC`", "solution": "CRYPT", "reward": "phone_a_friend"},
-    {"puzzle_type": "Obfuscated Log", "clue": "Backwards event ID:\n\n`EGATOBAS`", "solution": "SABOTAGE", "reward": "false_flag"},
-
-    # ── Asset-Pack Puzzles (match assets/intel_samples/) ─────
-    # These are higher-difficulty puzzles that correspond to the
-    # detailed write-ups in the asset pack markdown files.
-
-    # cipher_hex.md — Multi-word hex decode
+    # ── 1. Base64 → Identify the tool ────────────────────────────
     {
-        "puzzle_type": "Satellite Intercept",
-        "clue": "Intercepted hex payload from IRONVEIL satellite uplink. The burst was embedded in telemetry handshake data:\n\n`4F5045524154494F4E20424C41434B4F5554`\n\nConvert each hex pair to ASCII. Note: `0x20` = space.",
-        "solution": "OPERATION BLACKOUT",
-        "reward": "false_flag",
-        "difficulty": "easy-medium",
-        "asset_ref": "assets/intel_samples/cipher_hex.md",
-    },
-
-    # cipher_substitution.md — Caesar shift +7
-    {
-        "puzzle_type": "HUMINT Intercept",
-        "clue": "Photographed note from SHADOWMERE officer's desk:\n\n`PUZPKLY AOYLHA KLALJALK`\n\nSuspected monoalphabetic substitution. Frequency analysis shows 'L' appears 4 times — in English the most common letter is E.",
-        "solution": "INSIDER THREAT DETECTED",
+        "puzzle_type": "Signal Intercept",
+        "clue": (
+            "Intercepted encoded transmission from hostile SIGINT relay. "
+            "The payload appears to be Base64:\n\n"
+            "```\n"
+            "Q3JlYXRlZCBieSBCZW5qYW1pbiBEZWxweSBha2EgZ2VudGlsa2l3aS4g\n"
+            "SSBkdW1wIGNyZWRlbnRpYWxzIGZyb20gTFNBU1MgbWVtb3J5LiBEQ1N5\n"
+            "bmMgYW5kIFBhc3MtdGhlLUhhc2ggYXJlIG15IHNwZWNpYWx0aWVzLiBL\n"
+            "aXdpIGlzIG15IG1hc2NvdC4gTmFtZSB0aGUgdG9vbC4=\n"
+            "```\n\n"
+            "Decode the message. The answer is **not** the decoded text — "
+            "it is what the decoded text describes."
+        ),
+        "solution": "MIMIKATZ",
         "reward": "phone_a_friend",
-        "difficulty": "medium",
-        "asset_ref": "assets/intel_samples/cipher_substitution.md",
     },
 
-    # cipher_vigenere.md — Vigenere with key CIPHER
+    # ── 2. Hex → Identify the vulnerability ──────────────────────
+    {
+        "puzzle_type": "Memory Dump",
+        "clue": (
+            "Extracted from volatile memory during incident response. "
+            "Raw hex bytes recovered from process heap:\n\n"
+            "```\n"
+            "43 56 45 2D 32 30 31 34 2D 30 31 36 30 2E 20 41\n"
+            "20 6D 69 73 73 69 6E 67 20 62 6F 75 6E 64 73 20\n"
+            "63 68 65 63 6B 20 69 6E 20 4F 70 65 6E 53 53 4C\n"
+            "27 73 20 68 65 61 72 74 62 65 61 74 20 65 78 74\n"
+            "65 6E 73 69 6F 6E 20 6C 65 61 6B 65 64 20 73 65\n"
+            "72 76 65 72 20 6D 65 6D 6F 72 79 20 74 6F 20 61\n"
+            "6E 79 20 61 74 74 61 63 6B 65 72 2E 20 4D 69 6C\n"
+            "6C 69 6F 6E 73 20 6F 66 20 70 72 69 76 61 74 65\n"
+            "20 6B 65 79 73 20 65 78 70 6F 73 65 64 2E 20 4E\n"
+            "61 6D 65 20 74 68 69 73 20 76 75 6C 6E 65 72 61\n"
+            "62 69 6C 69 74 79 2E\n"
+            "```\n\n"
+            "Convert hex to ASCII to reveal the clue. "
+            "Then identify what it describes."
+        ),
+        "solution": "HEARTBLEED",
+        "reward": "false_flag",
+    },
+
+    # ── 3. Caesar cipher (unknown shift) → Identify the exploit ──
+    {
+        "puzzle_type": "Cipher Intercept",
+        "clue": (
+            "Encrypted field communication intercepted from hostile "
+            "operator. Monoalphabetic substitution detected — shift "
+            "value unknown:\n\n"
+            "```\n"
+            "ZF17-010. Gur Funqbj Oebxref fgbyr zr sebz gur AFN'f\n"
+            "Rdhngvba Tebhc. V gnetrg FZOi1 ba cbeg 445. JnaanPel\n"
+            "naq AbgCrgln jrncbavfrq zr. Anzr gur rkcybvg.\n"
+            "```\n\n"
+            "Determine the shift, decrypt the message, then identify "
+            "what it describes."
+        ),
+        "solution": "ETERNALBLUE",
+        "reward": "phone_a_friend",
+    },
+
+    # ── 4. XOR encrypted → Identify the attack technique ─────────
+    {
+        "puzzle_type": "Malware Config",
+        "clue": (
+            "Encrypted string extracted from a Cobalt Strike beacon's "
+            "malleable profile. The operator used single-byte XOR. "
+            "The key is not provided — you will need to recover it.\n\n"
+            "```\n"
+            "0f 0b 16 10 07 62 16 73 77 77 7a 6c 72 72 71 6c\n"
+            "62 0b 62 30 27 33 37 27 31 36 62 31 27 30 34 2b\n"
+            "21 27 62 36 2b 21 29 27 36 31 62 24 2d 30 62 11\n"
+            "12 0c 31 62 36 2a 27 2c 62 21 30 23 21 29 62 36\n"
+            "2a 27 2f 62 2d 24 24 2e 2b 2c 27 6c 62 0c 2d 62\n"
+            "23 26 2f 2b 2c 62 2c 27 27 26 27 26 6c 62 0b 2f\n"
+            "32 23 21 29 27 36 62 05 27 36 17 31 27 30 11 12\n"
+            "0c 31 62 23 37 36 2d 2f 23 36 27 31 62 2f 27 6c\n"
+            "62 0c 23 2f 27 62 36 2a 27 62 23 36 36 23 21 29 6c\n"
+            "```\n\n"
+            "**Hint:** The most frequent byte in natural English text "
+            "is the space character (0x20). Look at the frequency of "
+            "byte values to derive the key.\n\n"
+            "Decrypt, then identify the attack described."
+        ),
+        "solution": "KERBEROASTING",
+        "reward": "false_flag",
+    },
+
+    # ── 5. Vigenere (key from context) → Identify the tool ───────
     {
         "puzzle_type": "COMINT Intercept",
-        "clue": "Encrypted transmission from IRONVEIL proxy relay:\n\n`NIJUGY UMFBIEEM PSTYC`\n\nAnalyst note recovered from operator terminal: \"Key is CIPHER\" (Vigenere). Spaces are preserved; key advances only on letters.",
-        "solution": "LAUNCH SEQUENCE ALPHA",
-        "reward": "false_flag",
-        "difficulty": "hard",
-        "asset_ref": "assets/intel_samples/cipher_vigenere.md",
-    },
-
-    # stego_base64.md — Base64 hidden in diplomatic cable
-    {
-        "puzzle_type": "OSINT Collection",
-        "clue": "CORALHAVEN diplomatic communique No. 2026-0147 has a suspicious archive reference field:\n\n`Q1JJVElDQUwgVlVMTkVSQUJJTElUWQ==`\n\nThis does not match their standard reference format (CH-YYYY-NNNNN). The trailing `==` is a Base64 padding signature.",
-        "solution": "CRITICAL VULNERABILITY",
+        "clue": (
+            "Encrypted dispatch from DARKPULSE field operator. Polyalphabetic "
+            "substitution confirmed. Analyst note indicates the key is the "
+            "five-letter word for the domain this war is fought in:\n\n"
+            "```\n"
+            "K KBT RERJZV FGSITVMSC RVRBGB RYULJ WQJRX IPBTY\n"
+            "VFFSIA. QIEIRFPYEF GT QP EMMPVERPV. EGM4K MJ OW\n"
+            "EEKCZBWV. C FVRKKLH HFI LBQVF KF.\n"
+            "```\n\n"
+            "Derive the key, decrypt, then identify the tool described."
+        ),
+        "solution": "BLOODHOUND",
         "reward": "phone_a_friend",
-        "difficulty": "medium",
-        "asset_ref": "assets/intel_samples/stego_base64.md",
     },
 
-    # stego_metadata.md — Hex hidden in EXIF Artist field
+    # ── 6. Multi-layer: Base64(Hex) → Identify the protocol ─────
     {
-        "puzzle_type": "Digital Forensics",
-        "clue": "Seized laptop image has anomalous EXIF metadata. All fields match Samsung Galaxy S24 Ultra defaults except:\n\n`Artist: 455846494C5452415445`\n\nSamsung phones do not populate the Artist field. This value appears to be hex-encoded ASCII.",
-        "solution": "EXFILTRATE",
+        "puzzle_type": "Deep Forensics",
+        "clue": (
+            "Two-layer encoded artifact recovered from attacker's staging "
+            "server. The outer layer is Base64. What's inside is another "
+            "encoding. Peel both layers to reveal the clue:\n\n"
+            "```\n"
+            "NTA2ZjcyNzQyMDM4MzgyZTIwNTQ0NzU0MjA2MTZlNjQyMDU0\n"
+            "NDc1MzIwNzQ2OTYzNmI2NTc0NzMyZTIwNDc2ZjZjNjQ2NTZl\n"
+            "MjA3NDY5NjM2YjY1NzQ3MzIwNjY2ZjcyNjc2NTIwNmQ3OTIw\n"
+            "NzQ2ZjZiNjU2ZTczMmUyMDUzNjk2Yzc2NjU3MjIwNzQ2OTYz\n"
+            "NmI2NTc0NzMyMDc0NjE3MjY3NjU3NDIwNzM2NTcyNzY2OTYz\n"
+            "NjU3MzJlMjA1NzY5NmU2NDZmNzc3MzIwNjQ2ZjZkNjE2OTZl\n"
+            "MjA2MTc1NzQ2ODY1NmU3NDY5NjM2MTc0Njk2ZjZlMjA2NDY1\n"
+            "NzA2NTZlNjQ3MzIwNmY2ZTIwNmQ2NTJl\n"
+            "```\n\n"
+            "Decode both layers. The answer is what the final "
+            "plaintext describes."
+        ),
+        "solution": "KERBEROS",
         "reward": "false_flag",
-        "difficulty": "medium-hard",
-        "asset_ref": "assets/intel_samples/stego_metadata.md",
     },
 ]
 
-# Verify we have enough for 10 teams × 6 rounds
-assert len(INTEL_PUZZLE_POOL) >= 60, f"Need ≥60 puzzles, have {len(INTEL_PUZZLE_POOL)}"
+assert len(INTEL_PUZZLE_POOL) >= 6, f"Need ≥6 puzzles, have {len(INTEL_PUZZLE_POOL)}"

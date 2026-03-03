@@ -1,8 +1,9 @@
-"""World Engine — LLM-powered narrative generation with template fallback."""
+"""World Engine — Azure OpenAI narrative generation with template fallback."""
 from __future__ import annotations
 
 import os
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,15 @@ CATEGORY_TEMPLATES = {
     "violent": {"success": "{actor} unleashed {action} on {target} — devastating impact.", "failure": "{actor}'s {action} against {target} was intercepted."},
     "nuclear": {"success": "CATASTROPHIC: {actor} deployed {action} against {target}. The world will never be the same.", "failure": "{actor} attempted {action} on {target}, but the strike was neutralised."},
 }
+
+INTRO_NARRATIVE = """## Cyber War Room — Situation Briefing
+
+**Tensions are rising across the globe.** Multiple nation-states have mobilised their cyber commands, and the world stands on the brink of a full-scale digital conflict.
+
+Your nation's leadership is counting on you. Review your briefing, coordinate with your team, and prepare your first move carefully. Every action has consequences — for your nation and for the world.
+
+*No operations have been conducted yet. The first round is about to begin.*
+"""
 
 
 def _format_highlight(entry: dict) -> str:
@@ -28,43 +38,64 @@ def _format_highlight(entry: dict) -> str:
 
 
 def _template_narrative(round_number: int, highlights: list[dict], crisis: dict | None = None) -> str:
+    if not highlights:
+        return INTRO_NARRATIVE
+
     lines = [f"## Round {round_number} Report\n"]
     if crisis:
         lines.append(f"**CRISIS ACTIVE:** {crisis.get('name', 'Unknown crisis')} — {crisis.get('description', '')}\n")
     for h in highlights[:8]:
         lines.append(f"- {_format_highlight(h)}")
-    if not highlights:
-        lines.append("An uneasy calm settled over the cyber theatre. No major operations were reported.")
     return "\n".join(lines)
 
 
 def _llm_narrative(round_number: int, highlights: list[dict], crisis: dict | None = None) -> str | None:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    # Don't call the LLM when there are no actions — use the static intro instead
+    if not highlights:
         return None
+
+    endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+    api_key = os.environ.get("AZURE_OPENAI_API_KEY")
+    if not endpoint or not api_key:
+        return None
+
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
         action_summary = "\n".join(
             f"- {h.get('actor','?')} used {h.get('action_name','?')} on {h.get('target','no target')} ({'SUCCESS' if h.get('success') else 'FAILED'})"
             for h in highlights
         )
         crisis_text = f"\nACTIVE CRISIS: {crisis.get('name', '')} - {crisis.get('description', '')}" if crisis else ""
-        prompt = f"""You are a dramatic news broadcaster for a cyber warfare simulation game. Summarise Round {round_number} in 3-4 vivid paragraphs. Be specific about nations and actions. Use a tense, urgent tone.
+        prompt = f"""You are a dramatic news broadcaster for a cyber warfare simulation game. Summarise Round {round_number} in 3-4 vivid paragraphs.
+
+CRITICAL RULES:
+- ONLY describe the actions listed below. Do NOT invent or fabricate any actions, attacks, or events that are not in the list.
+- Be specific about the nations and actions mentioned. Use a tense, urgent tone.
+- Use markdown formatting: **bold** for emphasis, line breaks between paragraphs.
 
 Actions this round:
 {action_summary}
 {crisis_text}
 
-Write the broadcast now."""
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=500,
-            messages=[{"role": "user", "content": prompt}],
+Write the broadcast now. Only cover the actions listed above."""
+
+        resp = requests.post(
+            endpoint,
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 500,
+                "temperature": 0.8,
+            },
+            timeout=30,
         )
-        return message.content[0].text
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
     except Exception as e:
-        logger.warning("LLM narrative failed, using template fallback: %s", e)
+        logger.warning("Azure OpenAI narrative failed, using template fallback: %s", e)
         return None
 
 

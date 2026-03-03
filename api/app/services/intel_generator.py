@@ -29,7 +29,7 @@ def generate_intel_for_round(round_id: int) -> int:
     available = [i for i in range(len(INTEL_PUZZLE_POOL)) if i not in used]
 
     if len(available) < len(teams):
-        # Recycle if we've exhausted the pool (shouldn't happen with 60+ puzzles)
+        # Recycle if we've exhausted the pool
         available = list(range(len(INTEL_PUZZLE_POOL)))
 
     random.shuffle(available)

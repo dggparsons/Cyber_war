@@ -53,6 +53,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_influence": 5},
         target_effects={"current_security": -3},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="HONEYPOTS",
@@ -71,6 +72,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_influence": 2},
         target_effects={"current_prosperity": -6},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="DISINFORMATION",
@@ -81,6 +83,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_influence": 4},
         target_effects={"current_influence": -5},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="FORM_ALLIANCE",
@@ -101,6 +104,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_influence": 4},
         target_effects={"current_influence": -6},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="SUPPLY_CHAIN",
@@ -110,6 +114,7 @@ ACTIONS: List[ActionDefinition] = [
         description="Hit a vendor to undermine another nation's defences.",
         target_required=True,
         target_effects={"current_security": -5},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="SANCTIONS",
@@ -128,6 +133,7 @@ ACTIONS: List[ActionDefinition] = [
         escalation=28,
         description="Move forces to ready state; enables catastrophic actions later.",
         self_effects={"current_security": 2},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="CYBER_KINETIC",
@@ -137,6 +143,7 @@ ACTIONS: List[ActionDefinition] = [
         description="Cause physical damage through cyber means.",
         target_required=True,
         target_effects={"current_prosperity": -10, "current_security": -5},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="CRITICAL_SABOTAGE",
@@ -146,6 +153,7 @@ ACTIONS: List[ActionDefinition] = [
         description="Disrupt utilities and lower enemy prosperity.",
         target_required=True,
         target_effects={"current_prosperity": -8},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="NUCLEAR_STRIKE",
@@ -155,6 +163,7 @@ ACTIONS: List[ActionDefinition] = [
         description="Last-resort option that ends the scenario immediately.",
         target_required=True,
         target_effects={"current_prosperity": -50, "current_security": -50},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="UN_SANCTION",
@@ -187,6 +196,72 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_influence": 4},
         target_effects={"current_escalation": -10},
+        allowed_team_types=["un"],
+    ),
+    ActionDefinition(
+        code="UN_INVESTIGATION",
+        name="UN Investigation",
+        category="posturing",
+        escalation=2,
+        description="Launch a formal investigation into a nation's covert cyber operations, exposing them on the world stage and destroying their credibility.",
+        target_required=True,
+        self_effects={"current_influence": 4},
+        target_effects={"current_influence": -8},
+        allowed_team_types=["un"],
+    ),
+    ActionDefinition(
+        code="UN_ARMS_EMBARGO",
+        name="UN Arms Embargo",
+        category="posturing",
+        escalation=4,
+        description="Impose a binding arms embargo that cripples a nation's cyber-military capability, leaving them exposed.",
+        target_required=True,
+        self_effects={"current_influence": 2},
+        target_effects={"current_security": -10},
+        allowed_team_types=["un"],
+    ),
+    ActionDefinition(
+        code="UN_EMERGENCY_SESSION",
+        name="UN Emergency Session",
+        category="de_escalation",
+        escalation=-8,
+        description="Convene an emergency session of the Security Council to force a nation to stand down, massively reducing their aggression.",
+        target_required=True,
+        self_effects={"current_influence": 5},
+        target_effects={"current_escalation": -15},
+        allowed_team_types=["un"],
+    ),
+    ActionDefinition(
+        code="UN_HUMANITARIAN_AID",
+        name="UN Humanitarian Aid",
+        category="de_escalation",
+        escalation=-2,
+        description="Deploy humanitarian resources to rebuild a nation's economy after conflict, winning hearts and minds.",
+        target_required=True,
+        self_effects={"current_influence": 3},
+        target_effects={"current_prosperity": 8},
+        allowed_team_types=["un"],
+    ),
+    ActionDefinition(
+        code="UN_CYBER_TREATY",
+        name="UN Cyber Treaty",
+        category="de_escalation",
+        escalation=-4,
+        description="Propose a binding international cyber treaty that strengthens a nation's defences and constrains their aggression.",
+        target_required=True,
+        self_effects={"current_influence": 4},
+        target_effects={"current_escalation": -8, "current_security": 5},
+        allowed_team_types=["un"],
+    ),
+    ActionDefinition(
+        code="UN_OBSERVER",
+        name="UN Observer Mission",
+        category="posturing",
+        escalation=2,
+        description="Deploy observers into a nation's cyber command, gathering intelligence and putting them on notice.",
+        target_required=True,
+        self_effects={"current_influence": 3, "current_security": 3},
+        target_effects={"current_influence": -3},
         allowed_team_types=["un"],
     ),
     ActionDefinition(
@@ -243,6 +318,7 @@ ACTIONS: List[ActionDefinition] = [
         escalation=4,
         description="Funnel resources into cyber capabilities at the expense of the economy.",
         self_effects={"current_security": 4, "current_prosperity": -2},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="RANSOMWARE",
@@ -253,6 +329,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_prosperity": 4},
         target_effects={"current_prosperity": -6},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="DESTROY_CABLES",
@@ -262,6 +339,7 @@ ACTIONS: List[ActionDefinition] = [
         description="Sever physical communication links, crippling infrastructure and trade.",
         target_required=True,
         target_effects={"current_security": -8, "current_prosperity": -6},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="MILITARY_MOBILIZATION",
@@ -270,6 +348,7 @@ ACTIONS: List[ActionDefinition] = [
         escalation=28,
         description="Move conventional forces to ready state, bolstering defence but straining the economy.",
         self_effects={"current_security": 5, "current_prosperity": -4},
+        allowed_team_types=["nation"],
     ),
     ActionDefinition(
         code="AUTONOMOUS_WEAPON",
@@ -279,6 +358,7 @@ ACTIONS: List[ActionDefinition] = [
         description="Release a self-propagating AI weapon. If successful, triggers global doom.",
         target_required=True,
         target_effects={"current_prosperity": -40, "current_security": -40},
+        allowed_team_types=["nation"],
     ),
 ]
 

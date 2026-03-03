@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import './App.css'
 import {
   fetchGameState,
@@ -53,11 +55,9 @@ import { DoomOverlay, CrisisAlert, EscalationAlert } from './components/overlays
 import { NewsTicker } from './components/NewsTicker'
 import { GameHeader } from './components/GameHeader'
 import { ActionConsole } from './components/ActionConsole'
-import { IntelPanel } from './components/IntelPanel'
 import { LifelinesPanel } from './components/LifelinesPanel'
 import { PeaceCouncilPanel } from './components/PeaceCouncilPanel'
 import { GameSidebar } from './components/GameSidebar'
-import { DiplomacyPanel } from './components/DiplomacyPanel'
 import { AdvisorsPanel } from './components/AdvisorsPanel'
 import { ChatComposer } from './components/ChatComposer'
 
@@ -724,9 +724,11 @@ function App() {
       <main className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[3fr_1fr]">
         <div className="space-y-4">
           {/* World News */}
-          <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200">
+          <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200 prose-narrative">
             <h3 className="font-pixel text-xs text-warroom-cyan">World News</h3>
-            <p className="mt-2 text-slate-300">{data.narrative}</p>
+            <div className="mt-2 text-slate-300 leading-relaxed space-y-2 [&_strong]:text-warroom-amber [&_strong]:font-semibold [&_em]:text-slate-400 [&_h2]:font-pixel [&_h2]:text-warroom-amber [&_h2]:text-sm [&_h2]:mt-3 [&_ul]:list-disc [&_ul]:pl-4 [&_li]:text-slate-300">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.narrative}</ReactMarkdown>
+            </div>
           </div>
 
           <ActionConsole
