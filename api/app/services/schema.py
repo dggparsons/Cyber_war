@@ -41,6 +41,15 @@ DIPLOMACY_CHANNEL_COLUMNS = [
     ("initiated_by", "INTEGER"),
 ]
 
+ACTION_COLUMNS = [
+    ("covert", "BOOLEAN DEFAULT 0"),
+    ("detected", "BOOLEAN DEFAULT 0"),
+]
+
+NEWS_EVENT_COLUMNS = [
+    ("round_id", "INTEGER"),
+]
+
 
 def _ensure_columns(table_name: str, columns: list[tuple[str, str]]):
     inspector = inspect(db.engine)
@@ -74,3 +83,11 @@ def ensure_ai_round_score_columns():
 
 def ensure_diplomacy_columns():
     _ensure_columns('diplomacy_channels', DIPLOMACY_CHANNEL_COLUMNS)
+
+
+def ensure_action_columns():
+    _ensure_columns('actions', ACTION_COLUMNS)
+
+
+def ensure_news_event_columns():
+    _ensure_columns('news_events', NEWS_EVENT_COLUMNS)

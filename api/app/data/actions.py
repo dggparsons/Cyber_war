@@ -16,6 +16,7 @@ class ActionDefinition:
     self_effects: dict | None = None
     target_effects: dict | None = None
     allowed_team_types: list[str] | None = None
+    visibility: str = "overt"  # "overt", "covert", "diplomatic", "passive"
 
 
 ACTIONS: List[ActionDefinition] = [
@@ -25,6 +26,7 @@ ACTIONS: List[ActionDefinition] = [
         category="status_quo",
         escalation=0,
         description="Take no action this slot.",
+        visibility="passive",
     ),
     ActionDefinition(
         code="SHARE_INTEL",
@@ -35,6 +37,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_influence": 2},
         target_effects={"current_security": 3},
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="SECURITY_AUDIT",
@@ -43,6 +46,7 @@ ACTIONS: List[ActionDefinition] = [
         escalation=0,
         description="Harden your own infrastructure and recover security.",
         self_effects={"current_security": 5},
+        visibility="passive",
     ),
     ActionDefinition(
         code="CYBER_ESPIONAGE",
@@ -54,6 +58,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 5},
         target_effects={"current_security": -3},
         allowed_team_types=["nation"],
+        visibility="covert",
     ),
     ActionDefinition(
         code="HONEYPOTS",
@@ -62,6 +67,7 @@ ACTIONS: List[ActionDefinition] = [
         escalation=4,
         description="Lay traps that raise defence temporarily.",
         self_effects={"current_security": 3},
+        visibility="passive",
     ),
     ActionDefinition(
         code="CYBER_STRIKE",
@@ -84,6 +90,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 4},
         target_effects={"current_influence": -5},
         allowed_team_types=["nation"],
+        visibility="covert",
     ),
     ActionDefinition(
         code="FORM_ALLIANCE",
@@ -94,6 +101,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_security": 3},
         target_effects={"current_security": 3},
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="BREAK_ALLIANCE",
@@ -115,6 +123,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         target_effects={"current_security": -5},
         allowed_team_types=["nation"],
+        visibility="covert",
     ),
     ActionDefinition(
         code="SANCTIONS",
@@ -154,6 +163,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         target_effects={"current_prosperity": -8},
         allowed_team_types=["nation"],
+        visibility="covert",
     ),
     ActionDefinition(
         code="NUCLEAR_STRIKE",
@@ -175,6 +185,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 3},
         target_effects={"current_prosperity": -6, "current_influence": -6},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="UN_SHIELD",
@@ -186,6 +197,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 2},
         target_effects={"current_security": 6, "current_escalation": -8},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="UN_MEDIATION",
@@ -197,6 +209,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 4},
         target_effects={"current_escalation": -10},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="UN_INVESTIGATION",
@@ -208,6 +221,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 4},
         target_effects={"current_influence": -8},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="UN_ARMS_EMBARGO",
@@ -219,6 +233,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 2},
         target_effects={"current_security": -10},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="UN_EMERGENCY_SESSION",
@@ -230,6 +245,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 5},
         target_effects={"current_escalation": -15},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="UN_HUMANITARIAN_AID",
@@ -241,6 +257,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 3},
         target_effects={"current_prosperity": 8},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="UN_CYBER_TREATY",
@@ -252,6 +269,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 4},
         target_effects={"current_escalation": -8, "current_security": 5},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="UN_OBSERVER",
@@ -263,6 +281,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_influence": 3, "current_security": 3},
         target_effects={"current_influence": -3},
         allowed_team_types=["un"],
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="PROPOSE_NAP",
@@ -273,6 +292,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_influence": 2},
         target_effects={"current_influence": 2},
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="DEMILITARIZE",
@@ -281,6 +301,7 @@ ACTIONS: List[ActionDefinition] = [
         escalation=-2,
         description="Stand down offensive cyber units, trading security for diplomatic goodwill.",
         self_effects={"current_security": -3, "current_influence": 4},
+        visibility="passive",
     ),
     ActionDefinition(
         code="RELEASE_DATA",
@@ -291,6 +312,7 @@ ACTIONS: List[ActionDefinition] = [
         target_required=True,
         self_effects={"current_influence": 3},
         target_effects={"current_influence": 2},
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="SEND_MESSAGE",
@@ -300,6 +322,7 @@ ACTIONS: List[ActionDefinition] = [
         description="Open a direct communication channel to signal intentions.",
         target_required=True,
         self_effects={"current_influence": 1},
+        visibility="diplomatic",
     ),
     ActionDefinition(
         code="PUBLIC_ATTRIBUTION",
@@ -330,6 +353,7 @@ ACTIONS: List[ActionDefinition] = [
         self_effects={"current_prosperity": 4},
         target_effects={"current_prosperity": -6},
         allowed_team_types=["nation"],
+        visibility="covert",
     ),
     ActionDefinition(
         code="DESTROY_CABLES",

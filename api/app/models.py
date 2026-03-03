@@ -110,6 +110,8 @@ class Action(db.Model, TimestampMixin):
     locked_from_proposal_id = db.Column(db.Integer, db.ForeignKey("action_proposals.id"))
     resolved_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     success = db.Column(db.Boolean)
+    covert = db.Column(db.Boolean, default=False)
+    detected = db.Column(db.Boolean, default=False)
 
 
 class Message(db.Model, TimestampMixin):
@@ -190,6 +192,7 @@ class NewsEvent(db.Model, TimestampMixin):
     __tablename__ = "news_events"
 
     id = db.Column(db.Integer, primary_key=True)
+    round_id = db.Column(db.Integer, db.ForeignKey("rounds.id"))
     message = db.Column(db.Text, nullable=False)
 
 
@@ -239,6 +242,21 @@ class FalseFlagPlan(db.Model, TimestampMixin):
     proposal_id = db.Column(db.Integer, db.ForeignKey("action_proposals.id"), nullable=False)
     target_team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
     lifeline_id = db.Column(db.Integer, db.ForeignKey("lifelines.id"), nullable=False)
+
+
+class HiddenEvent(db.Model, TimestampMixin):
+    """Tracks covert actions whose real actor has not yet been exposed."""
+    __tablename__ = "hidden_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    round_id = db.Column(db.Integer, db.ForeignKey("rounds.id"), nullable=False)
+    action_id = db.Column(db.Integer, db.ForeignKey("actions.id"), nullable=False)
+    real_team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
+    target_team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
+    action_code = db.Column(db.String(64), nullable=False)
+    success = db.Column(db.Boolean, nullable=False)
+    revealed = db.Column(db.Boolean, default=False)
+    revealed_at_round_id = db.Column(db.Integer, db.ForeignKey("rounds.id"))
 
 
 class OutcomeScoreHistory(db.Model, TimestampMixin):

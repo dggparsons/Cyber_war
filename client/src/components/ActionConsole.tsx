@@ -98,6 +98,9 @@ export function ActionConsole({
                 <span style={{ color: getCategoryColor(selectedAction.category) }}>{selectedAction.category.replace('_', ' ')}</span>
                 <span className="ml-3 text-slate-400">Escalation:</span>{' '}
                 <span className={selectedAction.escalation >= 20 ? 'text-red-400' : selectedAction.escalation >= 5 ? 'text-warroom-amber' : 'text-green-400'}>+{selectedAction.escalation}</span>
+                {selectedAction.visibility === 'covert' && (
+                  <span className="ml-3 rounded border border-warroom-cyan/40 bg-warroom-cyan/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-warroom-cyan" title="Your identity stays hidden unless the target's security detects you">COVERT</span>
+                )}
               </p>
             </div>
           )}

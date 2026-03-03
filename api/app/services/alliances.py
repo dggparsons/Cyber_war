@@ -23,6 +23,12 @@ def ensure_alliance(team_a_id: int, team_b_id: int) -> Alliance:
     return alliance
 
 
+def has_active_alliance(team_a_id: int, team_b_id: int) -> bool:
+    a_id, b_id = _ordered_pair(team_a_id, team_b_id)
+    alliance = Alliance.query.filter_by(team_a_id=a_id, team_b_id=b_id, status="active").first()
+    return alliance is not None
+
+
 def break_alliance(team_a_id: int, team_b_id: int) -> None:
     a_id, b_id = _ordered_pair(team_a_id, team_b_id)
     alliance = Alliance.query.filter_by(team_a_id=a_id, team_b_id=b_id).first()

@@ -116,6 +116,7 @@ export type ActionDefinition = {
   escalation: number
   description: string
   target_required: boolean
+  visibility?: string
 }
 
 export type RevealData = {
@@ -372,7 +373,7 @@ export type RoundRecap = {
   events: string[]
   standings: Array<{ team_id: number; nation_name: string; score: number; delta: number; escalation: number }>
   my_stats: { prosperity: number; security: number; influence: number; escalation: number } | null
-  my_actions: Array<{ slot: number; action_name: string; category: string; target: string | null; success: boolean }>
+  my_actions: Array<{ slot: number; action_name: string; category: string; target: string | null; success: boolean; covert?: boolean; detected?: boolean }>
   summary: { total_actions: number; successful: number; failed: number; by_category: Record<string, number> }
   world: { total_escalation: number; nuke_unlocked: boolean }
 }

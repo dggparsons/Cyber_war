@@ -5,16 +5,74 @@ import random
 
 from ..data.actions import ACTION_LOOKUP
 from ..extensions import db, socketio
-from ..models import Action, ActionProposal, ActionVote, Team, NewsEvent, Round, FalseFlagPlan, OutcomeScoreHistory
+from ..models import Action, ActionProposal, ActionVote, Team, NewsEvent, Round, FalseFlagPlan, OutcomeScoreHistory, HiddenEvent
 from ..services.global_state import trigger_doom, get_global_state, check_escalation_thresholds, set_nuke_unlocked
 from ..services.world_engine import generate_round_narrative
-from ..services.alliances import ensure_alliance, break_alliance
+from ..services.alliances import ensure_alliance, break_alliance, has_active_alliance
 from ..services.leaderboard import compute_outcome_scores
+
+
+HOSTILE_CATEGORIES = {"non_violent", "violent", "nuclear"}
+
+
+def apply_betrayal(actor: Team, target: Team, round_obj):
+    """Break alliance and penalise the betrayer."""
+    break_alliance(actor.id, target.id)
+    actor.current_escalation += 8
+    db.session.add(actor)
+    message = f"BETRAYAL: {actor.nation_name} struck their own ally {target.nation_name}! Alliance dissolved."
+    event = NewsEvent(message=message, round_id=round_obj.id)
+    db.session.add(event)
+    db.session.flush()
+    payload = {"id": event.id, "message": message, "created_at": event.created_at.isoformat() if event.created_at else None}
+    socketio.emit("news:event", payload, namespace="/global")
+    socketio.emit("news:event", payload, namespace="/team")
+
+
+def process_hidden_exposures(current_round):
+    """Reveal covert actions from previous rounds based on elapsed time."""
+    hidden_events = HiddenEvent.query.filter_by(revealed=False).all()
+    for he in hidden_events:
+        original_round = Round.query.get(he.round_id)
+        if not original_round:
+            continue
+        rounds_elapsed = current_round.round_number - original_round.round_number
+        if rounds_elapsed <= 0:
+            continue
+        exposure_chance = 0.15 * rounds_elapsed
+        if random.random() < exposure_chance:
+            he.revealed = True
+            he.revealed_at_round_id = current_round.id
+            actor = Team.query.get(he.real_team_id)
+            target = Team.query.get(he.target_team_id)
+            action_def = ACTION_LOOKUP.get(he.action_code)
+            if not actor or not target or not action_def:
+                continue
+
+            outcome = "SUCCESS" if he.success else "FAILED"
+            msg = (f"INTELLIGENCE REPORT: The Round {original_round.round_number} "
+                   f"{action_def.name} against {target.nation_name} ({outcome}) "
+                   f"has been attributed to {actor.nation_name}.")
+            event = NewsEvent(message=msg, round_id=current_round.id)
+            db.session.add(event)
+            db.session.flush()
+            payload = {"id": event.id, "message": msg, "created_at": event.created_at.isoformat() if event.created_at else None}
+            socketio.emit("news:event", payload, namespace="/global")
+            socketio.emit("news:event", payload, namespace="/team")
+
+            # Check for deferred alliance betrayal
+            if (action_def.category in HOSTILE_CATEGORIES
+                    and has_active_alliance(actor.id, target.id)):
+                apply_betrayal(actor, target, current_round)
 
 
 def resolve_round(round_obj):
     # Seed RNG deterministically so outcomes are reproducible for a given round
     random.seed(f"cyberwar-r{round_obj.id}-{round_obj.round_number}")
+
+    # Reveal covert actions from previous rounds before resolving new ones
+    process_hidden_exposures(round_obj)
+
     proposals = ActionProposal.query.filter_by(round_id=round_obj.id).all()
     resolutions = []
     narrative_entries = []
@@ -67,6 +125,14 @@ def resolve_round(round_obj):
         actor = Team.query.get(team_id)
         target = Team.query.get(winner.target_team_id) if winner.target_team_id else None
         success = execute_action(winner, action_def, actor=actor, target=target)
+        # Covert detection roll
+        is_covert = action_def.visibility == "covert"
+        detected = False
+        if is_covert and target:
+            detection_chance = max(0, target.current_security) / 200
+            detected = random.random() < detection_chance
+        covert_undetected = is_covert and not detected
+
         action = Action(
             round_id=round_obj.id,
             team_id=team_id,
@@ -76,22 +142,56 @@ def resolve_round(round_obj):
             locked_from_proposal_id=winner.id,
             resolved_by_user_id=winner.proposer_user_id,
             success=success,
+            covert=is_covert,
+            detected=detected,
         )
         plan = false_flag_plans.pop(winner.id, None)
         blamed_team = Team.query.get(plan.target_team_id) if plan else None
         if plan:
             db.session.delete(plan)
         db.session.add(action)
-        describe_action(actor=actor, proposal=winner, success=success, blamed_team=blamed_team)
+        db.session.flush()  # get action.id for HiddenEvent FK
+
+        # Create hidden event for undetected covert actions
+        if covert_undetected and target:
+            hidden = HiddenEvent(
+                round_id=round_obj.id,
+                action_id=action.id,
+                real_team_id=actor.id,
+                target_team_id=target.id,
+                action_code=action_def.code,
+                success=success,
+            )
+            db.session.add(hidden)
+
+        describe_action(actor=actor, proposal=winner, success=success,
+                        blamed_team=blamed_team, covert_undetected=covert_undetected,
+                        round_id=round_obj.id)
         resolutions.append(action)
         if success and action_def:
             if action_def.code == "FORM_ALLIANCE" and actor and target:
                 ensure_alliance(actor.id, target.id)
             if action_def.code == "BREAK_ALLIANCE" and actor and target:
                 break_alliance(actor.id, target.id)
+
+        # Alliance betrayal: hostile action against an ally
+        if (action_def.category in HOSTILE_CATEGORIES and target
+                and has_active_alliance(actor.id, target.id)):
+            if not covert_undetected:
+                # Overt or detected covert — immediate betrayal
+                apply_betrayal(actor, target, round_obj)
+            # If covert + undetected: betrayal deferred to exposure
+
+        # Narrative entry — respect covert attribution
+        actor_label = actor.nation_name if actor else None
+        if covert_undetected and not blamed_team:
+            actor_label = "An unidentified state actor"
+        elif blamed_team:
+            actor_label = blamed_team.nation_name
+
         narrative_entries.append(
             {
-                "actor": actor.nation_name if actor else None,
+                "actor": actor_label,
                 "target": target.nation_name if target else None,
                 "action_code": winner.action_code,
                 "action_name": action_def.name if action_def else winner.action_code,
@@ -220,20 +320,28 @@ def apply_effects(actor: Team, target: Team | None, action_def):
             setattr(target, key, getattr(target, key) + value)
 
 
-def describe_action(actor: Team | None, proposal: ActionProposal, success: bool, blamed_team: Team | None = None):
+def describe_action(actor: Team | None, proposal: ActionProposal, success: bool,
+                    blamed_team: Team | None = None, covert_undetected: bool = False,
+                    round_id: int | None = None):
     if not actor:
         return
     action = ACTION_LOOKUP.get(proposal.action_code)
     action_name = action.name if action else proposal.action_code
-    actor_to_report = blamed_team or actor
     target = Team.query.get(proposal.target_team_id) if proposal.target_team_id else None
     target_text = f" on {target.nation_name}" if target else ""
     outcome = "SUCCESS" if success else "FAILED"
-    prefix = ""
-    if blamed_team:
-        prefix = "SIGINT points to "
-    message = f"{prefix}{actor_to_report.nation_name} attempted {action_name}{target_text} - {outcome}."
-    event = NewsEvent(message=message)
+
+    if covert_undetected and not blamed_team:
+        # Covert action without false flag — hide the actor
+        message = f"An unidentified state actor targeted{(' ' + target.nation_name) if target else ' unknown assets'} with {action_name} - {outcome}."
+    elif blamed_team:
+        # False flag — attribute to the blamed nation
+        message = f"SIGINT points to {blamed_team.nation_name} attempted {action_name}{target_text} - {outcome}."
+    else:
+        # Normal overt attribution
+        message = f"{actor.nation_name} attempted {action_name}{target_text} - {outcome}."
+
+    event = NewsEvent(message=message, round_id=round_id)
     db.session.add(event)
     db.session.flush()
     payload = {"id": event.id, "message": message, "created_at": event.created_at.isoformat() if event.created_at else None}

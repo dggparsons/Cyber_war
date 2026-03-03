@@ -192,6 +192,8 @@ ROUND_1_BRIEFING_NATION = {
                 "Actions range from diplomacy (sharing intel, forming alliances) to offensive operations (cyber strikes, espionage, sanctions).",
                 "Some actions target another nation — choose your target wisely.",
                 "Success is not guaranteed. Your security stat improves your odds; the target's security makes it harder.",
+                "Some actions are COVERT — your identity stays hidden unless the target detects you. Espionage, sabotage, disinformation, supply chain attacks, and ransomware are all covert.",
+                "Attacking an ally is possible but dangerous. If detected, the alliance breaks and you take a severe escalation penalty.",
             ],
         },
         {
@@ -214,6 +216,7 @@ ROUND_1_BRIEFING_NATION = {
             "items": [
                 "Round 1 is your chance to set the tone. Defensive and diplomatic moves are safe early plays.",
                 "Observe what other nations do before committing to aggression.",
+                "Covert actions let you strike without immediate attribution — but detection risk scales with the target's security score. Nothing stays hidden forever.",
                 "Check your intel drop — solving it early gives you a tactical advantage.",
             ],
         },
@@ -269,6 +272,7 @@ ROUND_1_BRIEFING_UN = {
             "items": [
                 "Watch for early aggression — nations that escalate quickly are your targets for sanctions or mediation.",
                 "Humanitarian Aid and Peacekeeping Shield are strong opening moves to build influence.",
+                "Nations can launch covert operations that hide their identity. Watch for 'unidentified state actor' in the news — intelligence may expose them later.",
                 "Open diplomacy channels with nations. Information is your greatest weapon.",
             ],
         },
@@ -276,82 +280,82 @@ ROUND_1_BRIEFING_UN = {
 }
 
 BRIEFING_TEMPLATES = {
-    "NEXUS": {
-        "title": "NEXUS Command Update",
-        "summary": "Allied SOCs report increased beaconing from IRONVEIL networks targeting our logistics cloud.",
-        "allies": ["DAWNSHIELD rapid-response pact", "FROSTBYTE intelligence lane"],
-        "threats": ["IRONVEIL spear-phishing against aerospace contractors", "SHADOWMERE disinformation aimed at Parliament"],
-        "consequences": "If you strike IRONVEIL directly, DAWNSHIELD expects attribution proof; failure drops their support by 10 influence.",
+    "US": {
+        "title": "White House Situation Room",
+        "summary": "NSA reports increased beaconing from Russian networks targeting defence contractors. CYBERCOM is on alert.",
+        "allies": ["UK — Five Eyes intelligence sharing", "Estonia — NATO cyber defence cooperation"],
+        "threats": ["Russia — spear-phishing against aerospace and energy sectors", "North Korea — ransomware targeting financial infrastructure"],
+        "consequences": "Striking Russia directly without allied consensus risks fracturing NATO support. Coordinate with the UK first.",
     },
-    "IRON": {
-        "title": "IRONVEIL Directive",
-        "summary": "NEXUS fleets manoeuvre near our subsea cables; propaganda wing requests strong retaliation narrative.",
-        "allies": ["SHADOWMERE asymmetric cell"],
-        "threats": ["NEXUS & DAWNSHIELD joint task force on your satellites"],
-        "consequences": "Attacking FROSTBYTE will tank neutral goodwill but grants +5 intimidation against CORALHAVEN.",
+    "RU": {
+        "title": "Kremlin Cyber Directorate",
+        "summary": "US carrier groups repositioning near subsea cables. State media demands a show of strength.",
+        "allies": ["North Korea — asymmetric operations partnership"],
+        "threats": ["US & UK joint task force targeting our satellite infrastructure", "Estonia hardening Baltic defences"],
+        "consequences": "Attacking Estonia triggers NATO Article 5 discussions and massive escalation. Consider softer targets.",
     },
-    "GNET": {
-        "title": "GHOSTNET Situation Room",
-        "summary": "Our CERT detected fresh implants on the Baltic energy grid. We suspect IRONVEIL or their proxies.",
-        "allies": ["FROSTBYTE cyber-defense pact"],
-        "threats": ["Possible IRONVEIL/SHADOWMERE joint ops", "NEONHAVEN courting our contractors"],
-        "consequences": "If we betray FROSTBYTE, we lose their intel feed for the rest of the game.",
+    "CN": {
+        "title": "PLA Strategic Support Force — Briefing",
+        "summary": "Our CERT detected fresh implants on South-East Asian undersea cables. Western attribution is building.",
+        "allies": ["Russia — strategic cyber cooperation pact"],
+        "threats": ["US leading a coalition to restrict semiconductor exports", "Japan reinforcing Pacific cyber defences"],
+        "consequences": "Overt operations against Japan or India risk pushing both firmly into the US camp.",
     },
-    "CORAL": {
-        "title": "CORALHAVEN Sovereign Council",
-        "summary": "Market jitters are hammering our stock exchange after rumors of supply chain compromises.",
-        "allies": ["NEONHAVEN investment corridor"],
-        "threats": ["NEXUS regulators ready to impose export controls", "SKYWARD probing undersea cables"],
-        "consequences": "A reckless strike risks capital flight (-15 prosperity) but sanctions on NEONHAVEN grant +5 influence at home.",
+    "BR": {
+        "title": "Brasilia Cyber Command",
+        "summary": "Market volatility following rumours of supply chain compromises in our banking infrastructure.",
+        "allies": ["Japan — technology investment corridor", "India — BRICS digital cooperation"],
+        "threats": ["US regulators preparing export controls", "China probing our undersea cable infrastructure"],
+        "consequences": "Reckless offensive action risks capital flight and investor panic. Diplomacy protects your economy.",
     },
-    "FRST": {
-        "title": "FROSTBYTE Arctic Brief",
-        "summary": "Friendly CERTs intercepted chatter that SKYWard is mapping our satellite uplinks; our populace demands transparency.",
-        "allies": ["NEXUS intelligence lane", "GHOSTNET CERT exchange"],
-        "threats": ["SKYWARD orbital surveillance", "IRONVEIL influence campaigns"],
-        "consequences": "Launching offensive ops without parliament approval will halve your public trust (lose 8 influence).",
+    "EE": {
+        "title": "Tallinn Cyber Defence Centre",
+        "summary": "NATO CERT intercepted Russian reconnaissance of our e-government systems. We wrote the book on cyber defence — time to prove it.",
+        "allies": ["US — NATO intelligence sharing", "UK — joint rapid response framework"],
+        "threats": ["Russia — influence campaigns targeting our elections", "North Korea — probing our financial sector"],
+        "consequences": "As a small nation, your strength is defence and diplomacy. Offensive operations without allies leave you exposed.",
     },
-    "SHDW": {
-        "title": "SHADOWMERE War Council",
-        "summary": "Disinformation units flooded DAWNSHIELD channels with forged cables; now is the moment to sow chaos.",
-        "allies": ["IRONVEIL shadow budgets"],
-        "threats": ["LOTUS neutrality monitors", "UN mandates tightening"],
-        "consequences": "If you get caught fabricating intel, everyone piles on: +10 escalation immediately.",
+    "KP": {
+        "title": "Reconnaissance General Bureau — War Room",
+        "summary": "Sanctions are tightening. Cyber operations are our primary revenue stream. The Supreme Leader demands results.",
+        "allies": ["Russia — shadow funding and operational cover"],
+        "threats": ["US & Japan tracing our cryptocurrency operations", "UN sanctions threatening remaining trade routes"],
+        "consequences": "Getting caught means more sanctions. But successful operations fund the state. High risk, high reward.",
     },
-    "DAWN": {
-        "title": "DAWNSHIELD Ops Center",
-        "summary": "Member states request clarity on retaliation thresholds. NEONHAVEN is asking for joint patrols.",
-        "allies": ["NEXUS, FROSTBYTE treaty"],
-        "threats": ["IRONVEIL denies involvement in subsea taps", "SHADOWMERE stirring unrest"],
-        "consequences": "If you fail to defend an ally when attacked, you lose 12 influence alliance-wide.",
+    "UK": {
+        "title": "GCHQ Cyber Operations Centre",
+        "summary": "NCSC reports increased Russian activity targeting UK critical national infrastructure. Five Eyes allies request coordination.",
+        "allies": ["US — Five Eyes, special relationship", "Estonia — NATO rapid response"],
+        "threats": ["Russia — subsea cable interference", "North Korea — ransomware hitting NHS supply chain"],
+        "consequences": "Failure to defend allies when attacked damages your reputation as a security guarantor. Lead from the front.",
     },
-    "NEON": {
-        "title": "NEONHAVEN Boardroom Alert",
-        "summary": "Share prices dipped after rumors of DAWNSHIELD audits. Investors want decisive action against saboteurs.",
-        "allies": ["CORALHAVEN sovereign funds"],
-        "threats": ["LOTUS leaking anonymized data on your acquisitions", "GHOSTNET poaching engineers"],
-        "consequences": "Ignoring a supply-chain threat costs 10 prosperity; punishing an attacker grants +6 security.",
+    "JP": {
+        "title": "Tokyo Cyber Defence HQ",
+        "summary": "NISC detected probing from Chinese APT groups targeting our semiconductor manufacturers. Markets are nervous.",
+        "allies": ["US — mutual defence treaty", "Brazil — technology investment partnership"],
+        "threats": ["China — industrial espionage targeting chip fabrication", "North Korea — cryptocurrency theft operations"],
+        "consequences": "Japan's strength is economic. Protect your prosperity — a market crash hurts more than any cyber strike.",
     },
-    "SKY": {
-        "title": "SKYWARD UNION Flight Deck",
-        "summary": "Our orbital telescopes caught DAWNSHIELD drones trailing our comm satellites. FROSTBYTE requests transparency.",
-        "allies": ["NEXUS deep-space tracking"],
-        "threats": ["DAWNSHIELD drone swarm", "GHOSTNET infiltration of launch sites"],
-        "consequences": "Destroying DAWNSHIELD assets triggers UN censure (+15 escalation) but buys +12 security.",
+    "IN": {
+        "title": "New Delhi National Cyber Coordination Centre",
+        "summary": "Multiple APT groups probing our digital identity infrastructure. Non-alignment gives us options but also makes us a target.",
+        "allies": ["Brazil — BRICS digital infrastructure pact", "Israel — cyber defence technology sharing"],
+        "threats": ["China — border tensions spilling into cyber domain", "North Korea — targeting our pharmaceutical sector"],
+        "consequences": "India can play all sides. But committing to an alliance means making enemies. Choose your friends wisely.",
     },
-    "LOTUS": {
-        "title": "LOTUS SANCTUM Bulletin",
-        "summary": "Intel brokers warn that multiple powers are hunting your anonymization nodes. Stay invisible or sell chaos.",
-        "allies": ["GHOSTNET info brokers", "UN Peace Council neutrality pact"],
-        "threats": ["NEONHAVEN light probes", "SHADOWMERE infiltration teams"],
-        "consequences": "If you stay neutral for two rounds, gain +10 influence; if you betray UN trust, lose 15 security instantly.",
+    "IL": {
+        "title": "Unit 8200 — Operational Brief",
+        "summary": "Signal intelligence indicates multiple actors probing our defence networks. Our cyber capabilities are world-class — use them wisely.",
+        "allies": ["India — cyber technology cooperation", "US — intelligence partnership"],
+        "threats": ["Russia — supporting hostile proxy cyber groups", "North Korea — competing in the zero-day market"],
+        "consequences": "Your security rating is the highest in the game. Use it to project power, but remember — everyone is watching.",
     },
     "UN": {
-        "title": "Peace Council Situation Update",
-        "summary": "Escalation ticks upward. Member states expect resolutions and targeted sanctions to calm tensions.",
-        "allies": ["LOTUS neutrality network"],
-        "threats": ["SHADOWMERE rogue campaigns", "IRONVEIL denial tactics"],
-        "consequences": "Failing to act when escalation >40 costs you legitimacy (-12 influence).",
+        "title": "UN Security Council — Situation Update",
+        "summary": "Global escalation is climbing. Member states expect the Council to act decisively with sanctions and peacekeeping.",
+        "allies": ["Neutral nations seeking stability"],
+        "threats": ["North Korea — ignoring sanctions", "Russia — blocking Council resolutions"],
+        "consequences": "Failing to act when escalation climbs costs you legitimacy. The world is watching — lead or be sidelined.",
     },
 }
 
@@ -709,6 +713,7 @@ def list_actions():
                 "escalation": action.escalation,
                 "description": action.description,
                 "target_required": action.target_required,
+                "visibility": action.visibility,
             }
             for action in ACTIONS
             if action.allowed_team_types is None or (team_type and team_type in action.allowed_team_types)
@@ -1091,6 +1096,8 @@ def round_recap():
                 "category": adef.category if adef else "unknown",
                 "target": target.nation_name if target else None,
                 "success": act.success,
+                "covert": act.covert,
+                "detected": act.detected,
             })
 
     # --- Aggregate action stats (public, no actor revealed) ---

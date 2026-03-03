@@ -201,6 +201,22 @@ export function HowToPlayModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Covert Operations</h3>
+            <p className="mt-1">Some actions are <span className="text-warroom-cyan font-semibold">covert</span> — your identity stays hidden unless the target's security detects you. Higher target security means a higher detection chance. Look for the <span className="rounded border border-warroom-cyan/40 bg-warroom-cyan/10 px-1 py-0.5 text-[10px] uppercase tracking-widest text-warroom-cyan">COVERT</span> badge in the Action Console.</p>
+            <p className="mt-1 text-xs text-slate-400">Covert actions: Cyber Espionage, Supply Chain Attack, Disinformation, Critical Sabotage, Ransomware</p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Alliance Betrayal</h3>
+            <p className="mt-1">Attacking an ally has <span className="text-red-400 font-semibold">severe consequences</span>. If detected, the alliance breaks immediately, you take an escalation penalty, and the betrayal is broadcast to all nations. Covert attacks on allies can go undetected initially — but if exposed later, the betrayal fallout still triggers.</p>
+          </div>
+
+          <div>
+            <h3 className="font-pixel text-xs text-warroom-amber">Delayed Attribution</h3>
+            <p className="mt-1">Intelligence agencies never stop working. Covert actions that went undetected have a <span className="text-warroom-amber">growing chance of exposure</span> each round. When exposed, the news feed reveals the true actor — and any alliance betrayals are triggered at that point. Nothing stays hidden forever.</p>
+          </div>
+
+          <div>
             <h3 className="font-pixel text-xs text-warroom-amber">Intel Drops & Lifelines</h3>
             <p className="mt-1"><span className="text-warroom-cyan">Intel Drops</span> are puzzles from the GM. Solve them to earn lifelines like <span className="text-warroom-amber">False Flags</span> (blame another nation for your action). Lifelines are limited — use them wisely.</p>
           </div>
@@ -477,6 +493,11 @@ export function RoundRecapModal({ recap, onClose }: { recap: RoundRecap; onClose
                     <span className={`text-[10px] uppercase font-semibold ${CAT_COLORS[a.category] ?? 'text-slate-400'}`}>Slot {a.slot}</span>
                     <span className="text-slate-200">{a.action_name}</span>
                     {a.target && <span className="text-slate-500">on <span className="text-slate-300">{a.target}</span></span>}
+                    {a.covert && (
+                      <span className={`text-[9px] uppercase tracking-widest px-1 rounded border ${a.detected ? 'text-red-400 border-red-400/40' : 'text-warroom-cyan border-warroom-cyan/40'}`}>
+                        {a.detected ? 'DETECTED' : 'UNDETECTED'}
+                      </span>
+                    )}
                     <span className={`ml-auto text-xs font-semibold ${a.success ? 'text-emerald-400' : 'text-red-400'}`}>
                       {a.success ? 'SUCCESS' : 'FAILED'}
                     </span>
