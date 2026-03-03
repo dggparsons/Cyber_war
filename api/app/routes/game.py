@@ -163,6 +163,118 @@ DEFAULT_BRIEFING = {
     "consequences": "Aggressive moves may push neutral nations into opposing blocs.",
 }
 
+ROUND_1_BRIEFING_NATION = {
+    "title": "Operational Briefing — Round 1",
+    "summary": "Welcome, Commander. This is your war room. Here is everything you need to know before your first move.",
+    "allies": [],
+    "threats": [],
+    "consequences": "",
+    "sections": [
+        {
+            "heading": "Your Objective",
+            "items": [
+                "Your nation has four stats: Prosperity (economy), Security (defence), Influence (diplomacy), and Escalation (danger level).",
+                "Score is calculated from Prosperity + Security + Influence. The higher, the better.",
+                "Escalation is bad — if it climbs too high, the situation spirals out of control and everyone loses.",
+            ],
+        },
+        {
+            "heading": "How Each Round Works",
+            "items": [
+                "Each round, your team submits ONE action. Choose carefully — you only get one shot per round.",
+                "Team members can propose different actions. The team votes, and the highest-voted proposal is locked in when the timer expires.",
+                "Your captain can veto proposals and override if needed.",
+            ],
+        },
+        {
+            "heading": "Actions & Targets",
+            "items": [
+                "Actions range from diplomacy (sharing intel, forming alliances) to offensive operations (cyber strikes, espionage, sanctions).",
+                "Some actions target another nation — choose your target wisely.",
+                "Success is not guaranteed. Your security stat improves your odds; the target's security makes it harder.",
+            ],
+        },
+        {
+            "heading": "Intel Drops & Mega Challenge",
+            "items": [
+                "Each round you receive an intel drop — a two-stage puzzle. Decode it, then solve the riddle to earn a lifeline.",
+                "The Mega Challenge is a persistent multi-part investigation worth big influence. Work on it between rounds.",
+            ],
+        },
+        {
+            "heading": "Diplomacy & Communication",
+            "items": [
+                "Use the diplomacy panel to open channels with other nations. Negotiate, threaten, or deceive — it's up to you.",
+                "Team chat is private to your nation. Use it to coordinate with your team.",
+                "Alliances boost both nations' security. But breaking an alliance has consequences.",
+            ],
+        },
+        {
+            "heading": "Round 1 Advice",
+            "items": [
+                "Round 1 is your chance to set the tone. Defensive and diplomatic moves are safe early plays.",
+                "Observe what other nations do before committing to aggression.",
+                "Check your intel drop — solving it early gives you a tactical advantage.",
+            ],
+        },
+    ],
+}
+
+ROUND_1_BRIEFING_UN = {
+    "title": "Operational Briefing — Round 1",
+    "summary": "Welcome to the UN Peace Council. You are the referee, the peacekeeper, and the conscience of the world.",
+    "allies": [],
+    "threats": [],
+    "consequences": "",
+    "sections": [
+        {
+            "heading": "Your Role",
+            "items": [
+                "You are NOT a nation. You cannot launch cyber attacks, deploy malware, or wage war.",
+                "Your power is diplomatic: sanctions, peacekeeping, mediation, investigations, embargoes, and humanitarian aid.",
+                "Your score comes from Influence — the more you shape events, the more powerful you become.",
+            ],
+        },
+        {
+            "heading": "How Each Round Works",
+            "items": [
+                "Each round, your team submits ONE action, just like nations.",
+                "Team members propose, vote, and the captain can override if needed.",
+                "Your actions target nations — choose who to help, who to punish, and who to investigate.",
+            ],
+        },
+        {
+            "heading": "Your Unique Powers",
+            "items": [
+                "UN Sanction — Binding sanctions that crush a nation's prosperity and influence.",
+                "Peacekeeping Shield — Deploy peacekeepers to protect a nation and reduce escalation.",
+                "UN Mediation — Force a ceasefire, massively dropping a nation's aggression.",
+                "UN Investigation — Expose a nation's covert ops, destroying their credibility.",
+                "UN Arms Embargo — Cripple a nation's military capability.",
+                "UN Emergency Session — Convene the Security Council to force a nation to stand down.",
+                "Humanitarian Aid — Rebuild a struggling nation's economy.",
+                "Cyber Treaty — Bind a nation with international rules.",
+                "Observer Mission — Deploy observers to gather intel and put a nation on notice.",
+            ],
+        },
+        {
+            "heading": "Intel Drops & Mega Challenge",
+            "items": [
+                "You receive intel drops each round, just like nations. Solve the two-stage puzzle to earn lifelines.",
+                "The Mega Challenge is a persistent investigation worth big influence.",
+            ],
+        },
+        {
+            "heading": "Round 1 Advice",
+            "items": [
+                "Watch for early aggression — nations that escalate quickly are your targets for sanctions or mediation.",
+                "Humanitarian Aid and Peacekeeping Shield are strong opening moves to build influence.",
+                "Open diplomacy channels with nations. Information is your greatest weapon.",
+            ],
+        },
+    ],
+}
+
 BRIEFING_TEMPLATES = {
     "NEXUS": {
         "title": "NEXUS Command Update",
@@ -309,7 +421,13 @@ def game_state():
         for proposal in proposals
     ]
 
-    briefing = BRIEFING_TEMPLATES.get(team.nation_code, DEFAULT_BRIEFING)
+    if round_obj.round_number <= 1:
+        if team.team_type == "un":
+            briefing = ROUND_1_BRIEFING_UN
+        else:
+            briefing = ROUND_1_BRIEFING_NATION
+    else:
+        briefing = BRIEFING_TEMPLATES.get(team.nation_code, DEFAULT_BRIEFING)
     global_state_payload = serialize_global_state()
 
     return jsonify(

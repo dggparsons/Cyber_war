@@ -6,6 +6,8 @@ import type { MegaChallengeData, RoundRecap } from '../lib/api'
 export type IntelDropItem = { id: number; title: string; description: string; reward: string; status: string }
 
 export function BriefingModal({ briefing, onClose }: { briefing: GameState['briefing']; onClose: () => void }) {
+  const hasSections = briefing.sections && briefing.sections.length > 0
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-warroom-cyan/40 bg-slate-900/90 p-6 shadow-2xl shadow-warroom-cyan/20">
@@ -16,28 +18,46 @@ export function BriefingModal({ briefing, onClose }: { briefing: GameState['brie
           </button>
         </div>
         <p className="mt-3 text-sm text-slate-200">{briefing.summary}</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="rounded border border-slate-700 p-3">
-            <p className="font-semibold text-warroom-amber">Allies</p>
-            <ul className="mt-2 list-disc pl-4 text-sm text-slate-300">
-              {briefing.allies.map((ally, idx) => (
-                <li key={idx}>{ally}</li>
-              ))}
-            </ul>
+
+        {hasSections ? (
+          <div className="mt-4 space-y-4">
+            {briefing.sections!.map((section, idx) => (
+              <div key={idx} className="rounded border border-slate-700 p-3">
+                <p className="font-semibold text-warroom-amber">{section.heading}</p>
+                <ul className="mt-2 list-disc pl-4 text-sm text-slate-300 space-y-1">
+                  {section.items.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
-          <div className="rounded border border-slate-700 p-3">
-            <p className="font-semibold text-warroom-amber">Threats</p>
-            <ul className="mt-2 list-disc pl-4 text-sm text-slate-300">
-              {briefing.threats.map((threat, idx) => (
-                <li key={idx}>{threat}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        <div className="mt-4 rounded border border-slate-700 p-3">
-          <p className="font-semibold text-warroom-amber">Consequences</p>
-          <p className="mt-2 text-sm text-slate-300">{briefing.consequences}</p>
-        </div>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded border border-slate-700 p-3">
+                <p className="font-semibold text-warroom-amber">Allies</p>
+                <ul className="mt-2 list-disc pl-4 text-sm text-slate-300">
+                  {briefing.allies.map((ally, idx) => (
+                    <li key={idx}>{ally}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded border border-slate-700 p-3">
+                <p className="font-semibold text-warroom-amber">Threats</p>
+                <ul className="mt-2 list-disc pl-4 text-sm text-slate-300">
+                  {briefing.threats.map((threat, idx) => (
+                    <li key={idx}>{threat}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="mt-4 rounded border border-slate-700 p-3">
+              <p className="font-semibold text-warroom-amber">Consequences</p>
+              <p className="mt-2 text-sm text-slate-300">{briefing.consequences}</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 """Pool of intel-drop puzzles auto-assigned each round.
 
 Each puzzle is TWO stages:
-  Stage 1 — Technical decode (base64, hex, cipher, XOR, etc.)
+  Stage 1 — Technical decode (encoding method not disclosed)
   Stage 2 — The decoded text is a riddle requiring domain knowledge
 
 Each puzzle has:
@@ -19,7 +19,7 @@ INTEL_PUZZLE_POOL: list[dict] = [
         "puzzle_type": "Signal Intercept",
         "clue": (
             "Intercepted encoded transmission from hostile SIGINT relay. "
-            "The payload appears to be Base64:\n\n"
+            "The payload was embedded in a covert channel burst:\n\n"
             "```\n"
             "Q3JlYXRlZCBieSBCZW5qYW1pbiBEZWxweSBha2EgZ2VudGlsa2l3aS4g\n"
             "SSBkdW1wIGNyZWRlbnRpYWxzIGZyb20gTFNBU1MgbWVtb3J5LiBEQ1N5\n"
@@ -38,7 +38,7 @@ INTEL_PUZZLE_POOL: list[dict] = [
         "puzzle_type": "Memory Dump",
         "clue": (
             "Extracted from volatile memory during incident response. "
-            "Raw hex bytes recovered from process heap:\n\n"
+            "Raw bytes recovered from process heap:\n\n"
             "```\n"
             "43 56 45 2D 32 30 31 34 2D 30 31 36 30 2E 20 41\n"
             "20 6D 69 73 73 69 6E 67 20 62 6F 75 6E 64 73 20\n"
@@ -52,8 +52,7 @@ INTEL_PUZZLE_POOL: list[dict] = [
             "61 6D 65 20 74 68 69 73 20 76 75 6C 6E 65 72 61\n"
             "62 69 6C 69 74 79 2E\n"
             "```\n\n"
-            "Convert hex to ASCII to reveal the clue. "
-            "Then identify what it describes."
+            "Decode the data. Then identify what it describes."
         ),
         "solution": "HEARTBLEED",
         "reward": "false_flag",
@@ -64,15 +63,13 @@ INTEL_PUZZLE_POOL: list[dict] = [
         "puzzle_type": "Cipher Intercept",
         "clue": (
             "Encrypted field communication intercepted from hostile "
-            "operator. Monoalphabetic substitution detected — shift "
-            "value unknown:\n\n"
+            "operator. Substitution cipher suspected:\n\n"
             "```\n"
             "ZF17-010. Gur Funqbj Oebxref fgbyr zr sebz gur AFN'f\n"
             "Rdhngvba Tebhc. V gnetrg FZOi1 ba cbeg 445. JnaanPel\n"
             "naq AbgCrgln jrncbavfrq zr. Anzr gur rkcybvg.\n"
             "```\n\n"
-            "Determine the shift, decrypt the message, then identify "
-            "what it describes."
+            "Decrypt the message, then identify what it describes."
         ),
         "solution": "ETERNALBLUE",
         "reward": "phone_a_friend",
@@ -82,9 +79,9 @@ INTEL_PUZZLE_POOL: list[dict] = [
     {
         "puzzle_type": "Malware Config",
         "clue": (
-            "Encrypted string extracted from a Cobalt Strike beacon's "
-            "malleable profile. The operator used single-byte XOR. "
-            "The key is not provided — you will need to recover it.\n\n"
+            "Encrypted string extracted from a beacon's configuration "
+            "data. Single-byte encryption suspected. The key has not "
+            "been recovered:\n\n"
             "```\n"
             "0f 0b 16 10 07 62 16 73 77 77 7a 6c 72 72 71 6c\n"
             "62 0b 62 30 27 33 37 27 31 36 62 31 27 30 34 2b\n"
@@ -96,10 +93,8 @@ INTEL_PUZZLE_POOL: list[dict] = [
             "0c 31 62 23 37 36 2d 2f 23 36 27 31 62 2f 27 6c\n"
             "62 0c 23 2f 27 62 36 2a 27 62 23 36 36 23 21 29 6c\n"
             "```\n\n"
-            "**Hint:** The most frequent byte in natural English text "
-            "is the space character (0x20). Look at the frequency of "
-            "byte values to derive the key.\n\n"
-            "Decrypt, then identify the attack described."
+            "Recover the key, decrypt the message, then identify "
+            "the attack described."
         ),
         "solution": "KERBEROASTING",
         "reward": "false_flag",
@@ -110,7 +105,7 @@ INTEL_PUZZLE_POOL: list[dict] = [
         "puzzle_type": "COMINT Intercept",
         "clue": (
             "Encrypted dispatch from DARKPULSE field operator. Polyalphabetic "
-            "substitution confirmed. Analyst note indicates the key is the "
+            "cipher confirmed. Analyst note indicates the key is the "
             "five-letter word for the domain this war is fought in:\n\n"
             "```\n"
             "K KBT RERJZV FGSITVMSC RVRBGB RYULJ WQJRX IPBTY\n"
@@ -123,13 +118,13 @@ INTEL_PUZZLE_POOL: list[dict] = [
         "reward": "phone_a_friend",
     },
 
-    # ── 6. Multi-layer: Base64(Hex) → Identify the protocol ─────
+    # ── 6. Multi-layer encoding → Identify the protocol ──────────
     {
         "puzzle_type": "Deep Forensics",
         "clue": (
-            "Two-layer encoded artifact recovered from attacker's staging "
-            "server. The outer layer is Base64. What's inside is another "
-            "encoding. Peel both layers to reveal the clue:\n\n"
+            "Multi-layer encoded artifact recovered from attacker's staging "
+            "server. At least two encoding layers are present. Peel them "
+            "back to reveal the clue:\n\n"
             "```\n"
             "NTA2ZjcyNzQyMDM4MzgyZTIwNTQ0NzU0MjA2MTZlNjQyMDU0\n"
             "NDc1MzIwNzQ2OTYzNmI2NTc0NzMyZTIwNDc2ZjZjNjQ2NTZl\n"
@@ -140,7 +135,7 @@ INTEL_PUZZLE_POOL: list[dict] = [
             "MjA2MTc1NzQ2ODY1NmU3NDY5NjM2MTc0Njk2ZjZlMjA2NDY1\n"
             "NzA2NTZlNjQ3MzIwNmY2ZTIwNmQ2NTJl\n"
             "```\n\n"
-            "Decode both layers. The answer is what the final "
+            "Decode all layers. The answer is what the final "
             "plaintext describes."
         ),
         "solution": "KERBEROS",

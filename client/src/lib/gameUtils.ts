@@ -70,6 +70,7 @@ export type GameState = {
     allies: string[]
     threats: string[]
     consequences: string
+    sections?: Array<{ heading: string; items: string[] }>
   }
   timer: import('./api').TimerPayload
   lifelines: Array<{ id: number; lifeline_type: string; remaining_uses: number; awarded_for?: string | null }>
