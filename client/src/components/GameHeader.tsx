@@ -29,6 +29,7 @@ export function GameHeader({
     switch (timerState) {
       case 'running': return { label: 'SUBMISSIONS OPEN', color: 'text-emerald-400 border-emerald-400/40' }
       case 'paused': return { label: 'PAUSED', color: 'text-warroom-amber border-warroom-amber/40 animate-pulse' }
+      case 'intermission': return { label: 'INTERMISSION', color: 'text-purple-400 border-purple-400/40 animate-pulse' }
       case 'complete': return { label: 'RESOLVING', color: 'text-red-400 border-red-400/40' }
       default: return { label: 'WAITING', color: 'text-slate-400 border-slate-500/40' }
     }
@@ -47,7 +48,9 @@ export function GameHeader({
         </div>
         <div className="text-right space-y-2">
           <div>
-            <p className="text-xs uppercase tracking-widest text-slate-400">Round {timer.round}</p>
+            <p className="text-xs uppercase tracking-widest text-slate-400">
+              {timer.state === 'intermission' ? `Next: Round ${timer.round}` : `Round ${timer.round}`}
+            </p>
             <div className="flex items-center justify-end gap-2">
               <p className={`font-pixel text-xl text-warroom-amber ${timer.state === 'paused' ? 'animate-pulse' : ''}`}>{timerDisplay}</p>
               <span className={`rounded border px-2 py-0.5 text-[10px] uppercase tracking-widest ${statusChip.color}`}>{statusChip.label}</span>
@@ -55,9 +58,10 @@ export function GameHeader({
           </div>
           <div className="flex flex-col items-end gap-1">
             <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-800/60">
-              <div className={`h-2 rounded-full transition-all duration-300 ${timer.state === 'paused' ? 'bg-warroom-amber/70 animate-pulse' : 'bg-warroom-cyan'}`} style={{ width: `${(timerProgress * 100).toFixed(1)}%` }} />
+              <div className={`h-2 rounded-full transition-all duration-300 ${timer.state === 'paused' ? 'bg-warroom-amber/70 animate-pulse' : timer.state === 'intermission' ? 'bg-purple-500/70 animate-pulse' : 'bg-warroom-cyan'}`} style={{ width: `${(timerProgress * 100).toFixed(1)}%` }} />
             </div>
             {timer.state === 'paused' && <p className="text-[10px] uppercase tracking-widest text-warroom-amber">Paused by GM</p>}
+            {timer.state === 'intermission' && <p className="text-[10px] uppercase tracking-widest text-purple-400">Review recap — next round starting soon</p>}
             {timer.state === 'complete' && <p className="text-[10px] uppercase tracking-widest text-slate-400">Submissions locked</p>}
             <p className="text-[10px] uppercase tracking-widest text-slate-400">Global Escalation: {totalEscalation}{nextThreshold ? ` → Next at ${nextThreshold}` : ''}</p>
             <DoomsdayClock escalation={totalEscalation} />

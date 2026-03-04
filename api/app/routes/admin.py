@@ -65,7 +65,7 @@ def advance_round():
     new_round = round_manager.advance_round()
     if not new_round:
         return jsonify({"round": active.round_number, "status": "complete"})
-    return jsonify({"round": new_round.round_number})
+    return jsonify({"round": new_round.round_number, "status": "intermission"})
 
 
 @admin_bp.post("/rounds/start")
@@ -150,6 +150,7 @@ def admin_status():
         for r in rounds
     ]
 
+    timer_data = round_manager.timer_payload(round_obj)
     payload = {
         "global": serialize_global_state(),
         "crises": crisis_history(),
@@ -157,8 +158,8 @@ def admin_status():
         "player_count": player_count,
         "teams": team_summary,
         "rounds": round_summary,
-        "current_round": round_obj.round_number if round_obj else None,
-        "timer": round_manager.timer_payload(round_obj),
+        "current_round": round_obj.round_number if round_obj else timer_data.get("round"),
+        "timer": timer_data,
     }
     if round_obj:
         payload["proposal_preview"] = build_proposal_preview(round_obj)

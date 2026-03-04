@@ -77,7 +77,7 @@ function App() {
   const [actions, setActions] = useState<ActionDefinition[]>([])
   const [selection, setSelection] = useState<Record<number, string>>({})
   const [targets, setTargets] = useState<Record<number, number>>({})
-  const [timerSeed, setTimerSeed] = useState<RoundTimer>({ round: 1, remaining: 0, duration: 360, state: 'idle' })
+  const [timerSeed, setTimerSeed] = useState<RoundTimer>({ round: 1, remaining: 0, duration: 300, state: 'idle' })
   const [isBriefingOpen, setIsBriefingOpen] = useState(false)
   const [isNationsOpen, setIsNationsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
@@ -398,15 +398,17 @@ function App() {
       hasShownBriefingRef.current = false
       loadGameState()
     }
-    const roundStartedHandler = () => {
-      // New round started → fetch recap of the just-resolved round
+    const roundEndedHandler = () => {
+      // Round just resolved → fetch recap and show during intermission
       fetchRoundRecap().then((res) => {
         if (res.recap) {
           setRoundRecap(res.recap)
           setIsRecapOpen(true)
         }
       }).catch(console.error)
-      // Also refresh game state for the new round
+    }
+    const roundStartedHandler = () => {
+      // New round timer started → refresh game state for the new round
       loadGameState()
     }
     socket.on('game:nuke_state', nukeHandler)
@@ -416,6 +418,7 @@ function App() {
     socket.on('news:event', newsHandler)
     socket.on('escalation:threshold', escalationHandler)
     socket.on('game:reset', resetHandler)
+    socket.on('round:ended', roundEndedHandler)
     socket.on('round:started', roundStartedHandler)
     return () => {
       socket.off('game:nuke_state', nukeHandler)
@@ -425,6 +428,7 @@ function App() {
       socket.off('news:event', newsHandler)
       socket.off('escalation:threshold', escalationHandler)
       socket.off('game:reset', resetHandler)
+      socket.off('round:ended', roundEndedHandler)
       socket.off('round:started', roundStartedHandler)
     }
   }, [authRequired, playCue, loadGameState])

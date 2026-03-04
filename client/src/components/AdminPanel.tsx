@@ -72,10 +72,10 @@ export function AdminPanel() {
       flash('Working...', 'info')
       if (action === 'start') {
         await adminStartRound()
-        flash('Round started', 'success')
+        flash('Game started — Round 1 timer running', 'success')
       } else if (action === 'advance') {
         await adminAdvanceRound()
-        flash('Round resolved and advanced', 'success')
+        flash('Round resolved — intermission started', 'success')
       } else if (action === 'reset') {
         await adminResetRounds()
         flash('Game state reset (players kept)', 'success')
@@ -182,6 +182,7 @@ export function AdminPanel() {
             <span className={`rounded px-2 py-1 font-semibold uppercase tracking-widest ${
               timerState === 'running' ? 'bg-green-900/40 text-green-400' :
               timerState === 'paused' ? 'bg-warroom-amber/20 text-warroom-amber' :
+              timerState === 'intermission' ? 'bg-purple-900/40 text-purple-400' :
               'bg-slate-800 text-slate-400'
             }`}>{timerState}</span>
           </div>
@@ -220,14 +221,23 @@ export function AdminPanel() {
 
         {/* ── Round Controls ───────────────────────────────────────────── */}
         <div className="mt-6 rounded border border-slate-700 bg-slate-900/60 p-4">
-          <h2 className="font-pixel text-sm text-warroom-cyan">Round Controls</h2>
+          <h2 className="font-pixel text-sm text-warroom-cyan">Game Controls</h2>
           <div className="mt-3 flex flex-wrap gap-3">
-            <button className="rounded border border-green-500/50 bg-green-900/30 px-5 py-2 text-sm font-semibold text-green-300 hover:bg-green-900/50" onClick={() => call('start')}>
-              Start Round
-            </button>
-            <button className="rounded border border-warroom-cyan/50 bg-warroom-cyan/20 px-5 py-2 text-sm font-semibold text-warroom-cyan hover:bg-warroom-cyan/30" onClick={() => call('advance')}>
-              Resolve & Advance
-            </button>
+            {timerState === 'idle' && (
+              <button className="rounded border border-green-500/50 bg-green-900/30 px-5 py-2 text-sm font-semibold text-green-300 hover:bg-green-900/50" onClick={() => call('start')}>
+                Start Game
+              </button>
+            )}
+            {(timerState === 'running' || timerState === 'paused' || timerState === 'complete') && (
+              <button className="rounded border border-warroom-cyan/50 bg-warroom-cyan/20 px-5 py-2 text-sm font-semibold text-warroom-cyan hover:bg-warroom-cyan/30" onClick={() => call('advance')}>
+                Resolve & Advance
+              </button>
+            )}
+            {timerState === 'intermission' && (
+              <span className="rounded border border-purple-500/50 bg-purple-900/20 px-5 py-2 text-sm font-semibold text-purple-300 animate-pulse">
+                Intermission — next round auto-starts
+              </span>
+            )}
             {timerState === 'running' ? (
               <button className="rounded border border-warroom-amber/50 bg-warroom-amber/20 px-5 py-2 text-sm font-semibold text-warroom-amber hover:bg-warroom-amber/30" onClick={() => call('pause')}>
                 Pause Timer

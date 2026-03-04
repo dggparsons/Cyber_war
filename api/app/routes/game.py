@@ -445,7 +445,7 @@ def game_state():
                 "seat_cap": team.seat_cap,
             },
             "advisors": advisors,
-            "timer_seconds": 6 * 60,
+            "timer_seconds": 5 * 60,
             "action_slots": [{"slot": slot} for slot in (1,)],
             "round": {"id": round_obj.id, "number": round_obj.round_number},
             "proposals": proposal_payload,

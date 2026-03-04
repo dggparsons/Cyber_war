@@ -26,14 +26,17 @@ export function SpectatorView({ leaderboard, timer, reveal, news, global }: {
       <div className="mx-auto max-w-5xl px-6 py-8">
         <h1 className="font-pixel text-2xl text-warroom-cyan">Cyber War Room — Live Leaderboard</h1>
         <div className="space-y-2">
-          <p className="text-sm text-slate-400">Round {timer.round} • {timerText}</p>
+          <p className="text-sm text-slate-400">
+            {timer.state === 'intermission' ? `Next: Round ${timer.round}` : `Round ${timer.round}`} • {timerText}
+          </p>
           <div className="h-2 w-48 overflow-hidden rounded-full bg-slate-800/60">
             <div
-              className={`h-2 rounded-full ${timer.state === 'paused' ? 'bg-warroom-amber/70 animate-pulse' : 'bg-warroom-cyan/70'}`}
+              className={`h-2 rounded-full ${timer.state === 'paused' ? 'bg-warroom-amber/70 animate-pulse' : timer.state === 'intermission' ? 'bg-purple-500/70 animate-pulse' : 'bg-warroom-cyan/70'}`}
               style={{ width: `${(progress * 100).toFixed(1)}%` }}
             />
           </div>
           {timer.state === 'paused' && <p className="text-xs text-warroom-amber">GM has paused submissions</p>}
+          {timer.state === 'intermission' && <p className="text-xs text-purple-400">Intermission — next round starting soon</p>}
           {timer.state === 'complete' && <p className="text-xs text-slate-400">Timer elapsed — awaiting resolution</p>}
           {doomActive && <p className="text-xs text-warroom-amber">Catastrophic strike detected — game over.</p>}
           <div className="flex items-center gap-3">

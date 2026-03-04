@@ -25,7 +25,7 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   return res.json()
 }
 
-export type TimerState = 'idle' | 'running' | 'paused' | 'complete'
+export type TimerState = 'idle' | 'running' | 'paused' | 'complete' | 'intermission'
 
 export type TimerPayload = {
   round: number

@@ -11,7 +11,7 @@ _DEFAULT_DB_PATH = _PROJECT_ROOT / "instance" / "cyber_war_dev.db"
 
 def _parse_round_durations(raw: str | None) -> list[int]:
     if not raw:
-        return [6, 6, 6, 4]
+        return [5, 5, 5, 5, 5, 3]
     durations: list[int] = []
     for chunk in raw.split(","):
         chunk = chunk.strip()
@@ -42,6 +42,7 @@ class BaseConfig:
     ROUND_DURATIONS: list[int] = field(
         default_factory=lambda: _parse_round_durations(os.environ.get("ROUND_DURATIONS"))
     )
+    INTERMISSION_SECONDS: int = int(os.environ.get("INTERMISSION_SECONDS", "20"))
     NUKE_LOCKED_DEFAULT: bool = os.environ.get("NUKE_LOCKED_DEFAULT", "true").lower() != "false"
     GM_USERNAME: str = os.environ.get("GM_USERNAME", "gm@example.com")
     GM_PASSWORD: str = os.environ.get("GM_PASSWORD", "change-this")

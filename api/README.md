@@ -21,7 +21,8 @@ python wsgi.py              # Starts dev server on :5050
 | `DATABASE_URL` | `sqlite:///../instance/cyber_war_dev.db` | Database path |
 | `CORS_ORIGINS` | `http://localhost:5173` | Allowed CORS origins |
 | `ROUND_COUNT` | `6` | Number of game rounds |
-| `ROUND_DURATIONS` | `6,6,6,6,6,4` | Minutes per round |
+| `ROUND_DURATIONS` | `5,5,5,5,5,3` | Minutes per round |
+| `INTERMISSION_SECONDS` | `20` | Seconds between rounds |
 | `NUKE_LOCKED_DEFAULT` | `true` | Start with nukes locked |
 | `GM_USERNAME` | `admin@warroom.local` | Admin login email |
 | `GM_PASSWORD` | `ChangeMe123!` | Admin login password |
