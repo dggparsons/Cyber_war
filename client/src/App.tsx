@@ -33,7 +33,9 @@ import {
   type ProposalPreview,
   type MegaChallengeData,
   type RoundRecap,
+  type GameSummary,
   fetchRoundRecap,
+  fetchFinalSummary,
 } from './lib/api'
 import { useChat } from './hooks/useChat'
 import { useRoundTimer, type RoundTimer } from './hooks/useRoundTimer'
@@ -50,14 +52,16 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthPanel } from './components/AuthPanel'
 import { SpectatorView } from './components/SpectatorView'
 import { AdminPanel } from './components/AdminPanel'
-import { BriefingModal, NationsModal, HowToPlayModal, IntelModal, MegaChallengeModal, RoundRecapModal, type IntelDropItem } from './components/modals'
+import { BriefingModal, NationsModal, HowToPlayModal, IntelModal, MegaChallengeModal, RoundRecapModal, GameOverModal, type IntelDropItem } from './components/modals'
 import { DoomOverlay, CrisisAlert, EscalationAlert } from './components/overlays'
 import { NewsTicker } from './components/NewsTicker'
 import { GameHeader } from './components/GameHeader'
 import { ActionConsole } from './components/ActionConsole'
+import { DiplomacyPanel } from './components/DiplomacyPanel'
 import { LifelinesPanel } from './components/LifelinesPanel'
 import { PeaceCouncilPanel } from './components/PeaceCouncilPanel'
 import { GameSidebar } from './components/GameSidebar'
+import { IntelPanel } from './components/IntelPanel'
 import { AdvisorsPanel } from './components/AdvisorsPanel'
 import { ChatComposer } from './components/ChatComposer'
 
@@ -69,6 +73,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [authRequired, setAuthRequired] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [myUserId, setMyUserId] = useState<number | null>(null)
   const [globalState, setGlobalState] = useState<GlobalStatePayload | null>(null)
   const chatEnabled = !authRequired && Boolean(data?.team?.id)
   const { messages, sendMessage, typingUsers, sendTyping } = useChat(chatEnabled)
@@ -85,6 +90,7 @@ function App() {
   const [diplomacyDrafts, setDiplomacyDrafts] = useState<Record<number, string>>({})
   const [diplomacyTarget, setDiplomacyTarget] = useState<number | ''>('')
   const [diplomacyUnread, setDiplomacyUnread] = useState(0)
+  const [commsUnread, setCommsUnread] = useState(0)
   const [newsFeed, setNewsFeed] = useState<Array<{ id: number; message: string }>>([])
   const [crisisFlash, setCrisisFlash] = useState<CrisisInfo | null>(null)
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([])
@@ -101,6 +107,8 @@ function App() {
   const [phoneHint, setPhoneHint] = useState<{ team_name: string; action_name: string; slot: number } | null>(null)
   const [roundRecap, setRoundRecap] = useState<RoundRecap | null>(null)
   const [isRecapOpen, setIsRecapOpen] = useState(false)
+  const [gameSummary, setGameSummary] = useState<GameSummary | null>(null)
+  const [isGameOverOpen, setIsGameOverOpen] = useState(false)
   const [toasts, setToasts] = useState<Array<{ id: number; message: string; type: 'info' | 'warning' | 'error' }>>([])
   const toastIdRef = useRef(0)
   const addToast = useCallback((message: string, type: 'info' | 'warning' | 'error' = 'info') => {
@@ -108,7 +116,7 @@ function App() {
     setToasts((prev) => [...prev.slice(-4), { id, message, type }])
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000)
   }, [])
-  const [chatCollapsed, setChatCollapsed] = useState(false)
+  const [activeTab, setActiveTab] = useState<'actions' | 'news' | 'comms' | 'diplomacy'>('actions')
   const chatEndRef = useRef<HTMLDivElement>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const hasShownBriefingRef = useRef(false)
@@ -184,6 +192,7 @@ function App() {
     setStatus('loading')
     try {
       const session = await fetchSession()
+      if (session.user?.id) setMyUserId(session.user.id)
       if (session.authenticated && session.user?.role && ['admin', 'gm'].includes(session.user.role)) {
         setIsAdmin(true)
         setStatus('ready')
@@ -202,6 +211,7 @@ function App() {
         const session = await fetchSession()
         if (cancelled) return
         if (session.authenticated) {
+          if (session.user?.id) setMyUserId(session.user.id)
           if (session.user?.role && ['admin', 'gm'].includes(session.user.role)) {
             setIsAdmin(true)
             setAuthRequired(false)
@@ -282,12 +292,14 @@ function App() {
     const socket = getTeamSocket()
     const myTeamId = data.team.id
     const msgHandler = (payload: any) => {
+      const msgId = payload.id ?? Date.now()
       setDiplomacyChannels((prev) => {
-        const copy = prev.map((channel) =>
-          channel.channel_id === payload.channel_id
-            ? { ...channel, messages: [...channel.messages, { id: payload.id ?? Date.now(), content: payload.content, user_id: payload.team_id, sent_at: payload.sent_at, display_name: payload.display_name }] }
-            : channel,
-        )
+        const copy = prev.map((channel) => {
+          if (channel.channel_id !== payload.channel_id) return channel
+          // Deduplicate: skip if we already have this message (optimistic add or duplicate socket event)
+          if (payload.id && channel.messages.some((m: any) => m.id === payload.id)) return channel
+          return { ...channel, messages: [...channel.messages, { id: msgId, content: payload.content, team_id: payload.team_id, user_id: payload.user_id ?? payload.team_id, sent_at: payload.sent_at, display_name: payload.display_name }] }
+        })
         return copy.length ? copy : prev
       })
       // Toast + badge for messages from other teams
@@ -300,7 +312,7 @@ function App() {
     const channelHandler = (payload: any) => {
       setDiplomacyChannels((prev) => {
         if (prev.some((ch) => ch.channel_id === payload.channel_id)) return prev
-        return [...prev, { channel_id: payload.channel_id, status: payload.status ?? 'pending', is_initiator: false, with_team: payload.with_team, messages: [] }]
+        return [...prev, { channel_id: payload.channel_id, status: payload.status ?? 'pending', is_initiator: payload.is_initiator ?? false, with_team: payload.with_team, messages: [] }]
       })
       if (payload.with_team) {
         addToast(`${payload.with_team.nation_name} opened a diplomacy channel`, 'info')
@@ -352,15 +364,25 @@ function App() {
     return () => { cancelled = true }
   }, [authRequired])
 
-  // News
+  // News — load events + latest narrative from API
+  const loadNews = useCallback(async () => {
+    try {
+      const res = await fetchNews()
+      if (res.events) setNewsFeed(res.events)
+      // Update narrative from resolved rounds so World News always shows latest
+      if (res.narrative) {
+        setData((prev) => prev ? { ...prev, narrative: res.narrative } : prev)
+      }
+    } catch (err) { console.error(err) }
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      try { const news = await fetchNews(); if (!cancelled) setNewsFeed(news) }
-      catch (err) { console.error(err) }
+      if (!cancelled) await loadNews()
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [loadNews])
 
   // Global socket events
   useEffect(() => {
@@ -398,17 +420,30 @@ function App() {
       hasShownBriefingRef.current = false
       loadGameState()
     }
-    const roundEndedHandler = () => {
+    const narrativeHandler = (payload: { round: number; narrative: string }) => {
+      setData((prev) => prev ? { ...prev, narrative: payload.narrative } : prev)
+    }
+    const roundEndedHandler = (payload: { round: number; next_round?: number | null }) => {
       // Round just resolved → fetch recap and show during intermission
       fetchRoundRecap().then((res) => {
         if (res.recap) {
           setRoundRecap(res.recap)
           setIsRecapOpen(true)
+          // If this was the final round, pre-fetch the game summary
+          if (res.recap.is_final_round || payload.next_round == null) {
+            fetchFinalSummary().then((sumRes) => {
+              if (sumRes.summary) setGameSummary(sumRes.summary)
+            }).catch(console.error)
+          }
         }
       }).catch(console.error)
+      // Refresh news (includes narrative from resolved round) + game state
+      loadNews()
+      loadGameState()
     }
     const roundStartedHandler = () => {
-      // New round timer started → refresh game state for the new round
+      // New round timer started → refresh game state but keep recap open until user dismisses
+      loadNews()
       loadGameState()
     }
     socket.on('game:nuke_state', nukeHandler)
@@ -418,6 +453,7 @@ function App() {
     socket.on('news:event', newsHandler)
     socket.on('escalation:threshold', escalationHandler)
     socket.on('game:reset', resetHandler)
+    socket.on('news:narrative', narrativeHandler)
     socket.on('round:ended', roundEndedHandler)
     socket.on('round:started', roundStartedHandler)
     return () => {
@@ -426,12 +462,13 @@ function App() {
       socket.off('crisis:injected', crisisHandler)
       socket.off('crisis:cleared', crisisClearedHandler)
       socket.off('news:event', newsHandler)
+      socket.off('news:narrative', narrativeHandler)
       socket.off('escalation:threshold', escalationHandler)
       socket.off('game:reset', resetHandler)
       socket.off('round:ended', roundEndedHandler)
       socket.off('round:started', roundStartedHandler)
     }
-  }, [authRequired, playCue, loadGameState])
+  }, [authRequired, playCue, loadGameState, loadNews])
 
   // Team socket events
   useEffect(() => {
@@ -455,11 +492,16 @@ function App() {
       )
       if (isUN) refreshPreview()
     }
+    const rosterHandler = (roster: Array<{ id: number; display_name: string; role: string; is_captain: boolean }>) => {
+      setData((prev) => prev ? { ...prev, roster } : prev)
+    }
     socket.on('proposals:auto_locked', autoLockHandler)
     socket.on('proposal:vetoed', vetoHandler)
+    socket.on('team:roster', rosterHandler)
     return () => {
       socket.off('proposals:auto_locked', autoLockHandler)
       socket.off('proposal:vetoed', vetoHandler)
+      socket.off('team:roster', rosterHandler)
     }
   }, [authRequired, data?.team?.id, isUN, refreshPreview])
 
@@ -476,15 +518,17 @@ function App() {
     return () => clearTimeout(timeout)
   }, [escalationFlash])
 
-  // Connection status
+  // Connection status — track /team socket (primary comms channel for players)
   useEffect(() => {
-    const socket = getGlobalSocket()
-    setConnected(socket.connected)
-    const onConnect = () => setConnected(true)
-    const onDisconnect = () => setConnected(false)
-    socket.on('connect', onConnect)
-    socket.on('disconnect', onDisconnect)
-    return () => { socket.off('connect', onConnect); socket.off('disconnect', onDisconnect) }
+    const team = getTeamSocket()
+    const global = getGlobalSocket()
+    const update = () => setConnected(team.connected || global.connected)
+    update()
+    team.on('connect', update)
+    team.on('disconnect', update)
+    global.on('connect', update)
+    global.on('disconnect', update)
+    return () => { team.off('connect', update); team.off('disconnect', update); global.off('connect', update); global.off('disconnect', update) }
   }, [])
 
   // Session kick
@@ -497,6 +541,26 @@ function App() {
 
   // Auto-scroll chat
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  // Chat unread counter + browser title notification
+  const prevMsgCount = useRef(0)
+  useEffect(() => {
+    if (messages.length > prevMsgCount.current && prevMsgCount.current > 0) {
+      const latest = messages[messages.length - 1]
+      if (latest && latest.user_id !== myUserId) {
+        if (activeTab !== 'comms') setCommsUnread((n) => n + 1)
+        if (document.hidden) document.title = `(New message) Cyber War Room`
+      }
+    }
+    prevMsgCount.current = messages.length
+  }, [messages, activeTab, myUserId])
+
+  // Clear title notification on focus
+  useEffect(() => {
+    const handler = () => { document.title = 'Cyber War Room' }
+    window.addEventListener('focus', handler)
+    return () => window.removeEventListener('focus', handler)
+  }, [])
 
   const timerDisplay = useMemo(() => formatTimerDisplay(timer), [timer])
   const timerProgress = useMemo(() => {
@@ -587,10 +651,23 @@ function App() {
   const handleSendDiplomacy = async (channelId: number) => {
     const content = diplomacyDrafts[channelId]
     if (!content) return
+    // Clear draft immediately for responsiveness
+    setDiplomacyDrafts((prev) => ({ ...prev, [channelId]: '' }))
     try {
-      await sendDiplomacyMessage(channelId, content)
-      setDiplomacyDrafts((prev) => ({ ...prev, [channelId]: '' }))
-    } catch (err) { console.error(err); alert('Failed to send diplomacy message.') }
+      const result = await sendDiplomacyMessage(channelId, content)
+      // Optimistic: add message from HTTP response so it appears even if WebSocket is delayed
+      if (result?.id) {
+        setDiplomacyChannels((prev) => prev.map((ch) => {
+          if (ch.channel_id !== channelId) return ch
+          if (ch.messages.some((m: any) => m.id === result.id)) return ch
+          return { ...ch, messages: [...ch.messages, { id: result.id, content: result.content, team_id: result.team_id, user_id: result.team_id, sent_at: result.sent_at, display_name: result.display_name }] }
+        }))
+      }
+    } catch (err) {
+      // Restore draft on failure
+      setDiplomacyDrafts((prev) => ({ ...prev, [channelId]: content }))
+      console.error(err); alert('Failed to send diplomacy message.')
+    }
   }
 
   const handleRespondDiplomacy = async (channelId: number, action: 'accept' | 'decline') => {
@@ -605,9 +682,20 @@ function App() {
     const answer = intelAnswers[intelId]
     if (!answer) { alert('Enter a solution attempt first.'); return }
     try {
-      await solveIntel(intelId, answer)
+      const result = await solveIntel(intelId, answer)
       setIntelAnswers((prev) => ({ ...prev, [intelId]: '' }))
-      await loadGameState()
+      // Update intel drop status and add new lifeline locally
+      setData((prev) => {
+        if (!prev) return prev
+        const updated = {
+          ...prev,
+          intel_drops: prev.intel_drops.map((d) => d.id === intelId ? { ...d, status: 'solved' } : d),
+        }
+        if (result.lifeline) {
+          updated.lifelines = [...(prev.lifelines ?? []), result.lifeline]
+        }
+        return updated
+      })
     } catch (err) { console.error(err); alert('Incorrect solution or puzzle already solved.') }
   }
 
@@ -695,7 +783,29 @@ function App() {
         onViewRecap={roundRecap ? () => setIsRecapOpen(true) : undefined}
       />
 
-      {isRecapOpen && roundRecap && <RoundRecapModal recap={roundRecap} onClose={() => setIsRecapOpen(false)} />}
+      {isRecapOpen && roundRecap && (
+        <RoundRecapModal
+          recap={roundRecap}
+          isGameOver={!!gameSummary || !!roundRecap.is_final_round}
+          onClose={() => {
+            setIsRecapOpen(false)
+            if (roundRecap?.is_final_round) {
+              if (gameSummary) {
+                setIsGameOverOpen(true)
+              } else {
+                // Summary still loading — fetch and show when ready
+                fetchFinalSummary().then((res) => {
+                  if (res.summary) {
+                    setGameSummary(res.summary)
+                    setIsGameOverOpen(true)
+                  }
+                }).catch(console.error)
+              }
+            }
+          }}
+        />
+      )}
+      {isGameOverOpen && gameSummary && <GameOverModal summary={gameSummary} onClose={() => setIsGameOverOpen(false)} />}
       {isBriefingOpen && <BriefingModal briefing={data.briefing} onClose={() => setIsBriefingOpen(false)} />}
       {isNationsOpen && <NationsModal myTeamId={data.team.id} entries={leaderboard?.entries ?? []} alliances={data.alliances} diplomacyChannels={diplomacyChannels} onClose={() => setIsNationsOpen(false)} />}
       {isHelpOpen && <HowToPlayModal onClose={() => {
@@ -711,7 +821,7 @@ function App() {
           intel={selectedIntel}
           answer={intelAnswers[selectedIntel.id] ?? ''}
           onAnswerChange={(v) => setIntelAnswers((prev) => ({ ...prev, [selectedIntel.id]: v }))}
-          onSubmit={() => { handleIntelSolve(selectedIntel.id); setSelectedIntel(null) }}
+          onSubmit={async () => { await handleIntelSolve(selectedIntel.id); setSelectedIntel(null) }}
           onClose={() => setSelectedIntel(null)}
         />
       )}
@@ -727,82 +837,154 @@ function App() {
 
       <main className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[3fr_1fr]">
         <div className="space-y-4">
-          {/* World News */}
-          <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200 prose-narrative">
-            <h3 className="font-pixel text-xs text-warroom-cyan">World News</h3>
-            <div className="mt-2 text-slate-300 leading-relaxed space-y-2 [&_strong]:text-warroom-amber [&_strong]:font-semibold [&_em]:text-slate-400 [&_h2]:font-pixel [&_h2]:text-warroom-amber [&_h2]:text-sm [&_h2]:mt-3 [&_ul]:list-disc [&_ul]:pl-4 [&_li]:text-slate-300">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.narrative}</ReactMarkdown>
-            </div>
-          </div>
-
-          <ActionConsole
-            nukeUnlocked={nukeUnlocked}
-            doomActive={doomActive}
-            activeCrisis={activeCrisis}
-            availableActions={availableActions}
-            actions={actions}
-            activeProposals={activeProposals}
-            selection={selection}
-            targets={targets}
-            teamOptions={teamOptions}
-            falseFlagCount={falseFlagCount}
-            falseFlagTargets={falseFlagTargets}
-            isCaptain={isCaptain}
-            onSelectionChange={handleSelectionChange}
-            onTargetChange={handleTargetChange}
-            onSubmitProposal={handleSubmitProposal}
-            onVote={handleVote}
-            onApplyFalseFlag={handleApplyFalseFlag}
-            onFalseFlagTargetChange={(pid, val) => setFalseFlagTargets((prev) => ({ ...prev, [pid]: val }))}
-            onCaptainOverride={handleCaptainOverride}
-          />
-
-          {/* Team Chat — full width under action console */}
-          <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-pixel text-xs text-warroom-cyan">Team Comms</h3>
-              <button className="text-[10px] text-slate-400 hover:text-slate-200" onClick={() => setChatCollapsed(!chatCollapsed)}>
-                {chatCollapsed ? 'Expand' : 'Collapse'}
-              </button>
-            </div>
-            {!chatCollapsed && (
-              <>
-                <div className="overflow-y-auto rounded border border-slate-700/60 bg-warroom-blue/40 p-3 text-sm text-slate-300 max-h-48 min-h-[120px]">
-                  {messages.map((line, idx) => (
-                    <p key={idx}>
-                      <span className={
-                        line.role === 'gm' || line.role === 'admin' ? 'text-red-400 font-semibold' :
-                        line.role === 'advisor' ? 'text-warroom-amber' :
-                        'text-warroom-cyan'
-                      }>{line.display_name}:</span> {line.content}
-                    </p>
-                  ))}
-                  <div ref={chatEndRef} />
-                </div>
-                {typingUsers.length > 0 && (
-                  <p className="text-[10px] text-slate-400 italic">
-                    {typingUsers.map((u) => u.display_name).join(', ')} typing...
-                  </p>
+          {/* Tab Bar */}
+          <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-900/60 p-1">
+            {(['actions', 'news', 'comms', 'diplomacy'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(tab); if (tab === 'comms') setCommsUnread(0); if (tab === 'diplomacy') setDiplomacyUnread(0) }}
+                className={`flex-1 rounded px-3 py-2 text-xs font-pixel uppercase tracking-wider transition-colors ${
+                  activeTab === tab
+                    ? 'bg-warroom-cyan/20 text-warroom-cyan border border-warroom-cyan/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                }`}
+              >
+                {tab === 'actions' ? 'Actions' : tab === 'news' ? 'News' : tab === 'comms' ? 'Team Comms' : 'Diplomacy'}
+                {tab === 'comms' && activeTab !== 'comms' && commsUnread > 0 && (
+                  <span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                 )}
-                <ChatComposer onSend={sendMessage} onTyping={sendTyping} />
-              </>
-            )}
+                {tab === 'diplomacy' && activeTab !== 'diplomacy' && diplomacyUnread > 0 && (
+                  <span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-warroom-amber animate-pulse" />
+                )}
+              </button>
+            ))}
           </div>
 
-          <AdvisorsPanel advisors={data.advisors} />
+          {/* NEWS TAB */}
+          {activeTab === 'news' && (
+            <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200 prose-narrative">
+              <div className="text-slate-300 leading-relaxed space-y-2 [&_strong]:text-warroom-amber [&_strong]:font-semibold [&_em]:text-slate-400 [&_h2]:font-pixel [&_h2]:text-warroom-amber [&_h2]:text-sm [&_h2]:mt-3 [&_ul]:list-disc [&_ul]:pl-4 [&_li]:text-slate-300">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.narrative}</ReactMarkdown>
+              </div>
+              {newsFeed.length > 0 && (
+                <div className="mt-4 border-t border-slate-700/50 pt-3">
+                  <p className="text-[10px] uppercase tracking-widest text-warroom-amber/80 font-semibold mb-2">Intelligence Feed</p>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {newsFeed.slice(0, 20).map((item) => (
+                      <div key={item.id} className="rounded border border-slate-700/40 bg-slate-800/30 px-2.5 py-1.5 text-xs text-slate-400">
+                        {item.message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-          <LifelinesPanel
-            lifelines={lifelines}
-            phoneHint={phoneHint}
-            onUsePhoneAFriend={async () => {
-              try { const result = await usePhoneAFriend(); setPhoneHint(result.hint) }
-              catch { alert('Failed to use Phone-a-Friend.') }
-            }}
-            onDismissHint={() => setPhoneHint(null)}
-          />
+          {/* ACTIONS TAB */}
+          {activeTab === 'actions' && (
+            <>
+              <ActionConsole
+                nukeUnlocked={nukeUnlocked}
+                doomActive={doomActive}
+                activeCrisis={activeCrisis}
+                availableActions={availableActions}
+                actions={actions}
+                activeProposals={activeProposals}
+                selection={selection}
+                targets={targets}
+                teamOptions={teamOptions}
+                falseFlagCount={falseFlagCount}
+                falseFlagTargets={falseFlagTargets}
+                isCaptain={isCaptain}
+                onSelectionChange={handleSelectionChange}
+                onTargetChange={handleTargetChange}
+                onSubmitProposal={handleSubmitProposal}
+                onVote={handleVote}
+                onApplyFalseFlag={handleApplyFalseFlag}
+                onFalseFlagTargetChange={(pid, val) => setFalseFlagTargets((prev) => ({ ...prev, [pid]: val }))}
+                onCaptainOverride={handleCaptainOverride}
+              />
 
-          {isUN && previewData && (
-            <PeaceCouncilPanel previewData={previewData} onVetoProposal={handleVetoProposal} />
+              <AdvisorsPanel advisors={data.advisors} />
+
+              <LifelinesPanel
+                lifelines={lifelines}
+                phoneHint={phoneHint}
+                teamOptions={teamOptions}
+                onUsePhoneAFriend={async (targetTeamId) => {
+                  try { const result = await usePhoneAFriend(targetTeamId); setPhoneHint(result.hint) }
+                  catch { alert('Failed to use Phone-a-Friend.') }
+                }}
+                onDismissHint={() => setPhoneHint(null)}
+              />
+
+              <IntelPanel
+                intelDrops={data.intel_drops}
+                megaChallenge={megaChallenge}
+                onSelectIntel={setSelectedIntel}
+                onOpenMega={() => setIsMegaOpen(true)}
+              />
+
+              {isUN && previewData && (
+                <PeaceCouncilPanel previewData={previewData} onVetoProposal={handleVetoProposal} />
+              )}
+            </>
+          )}
+
+          {/* TEAM COMMS TAB */}
+          {activeTab === 'comms' && (
+            <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 flex flex-col gap-3">
+              <div className="overflow-y-auto rounded border border-slate-700/60 bg-warroom-blue/40 p-3 text-sm max-h-[400px] min-h-[200px] space-y-2">
+                {messages.map((line, idx) => {
+                  const isMe = myUserId != null && line.user_id === myUserId
+                  const isGM = line.role === 'gm' || line.role === 'admin'
+                  return (
+                    <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[75%] rounded-lg px-3 py-1.5 ${
+                        isGM ? 'bg-red-900/30 border border-red-500/30' :
+                        isMe ? 'bg-warroom-cyan/15 border border-warroom-cyan/30' :
+                        'bg-slate-800/60 border border-slate-700/50'
+                      }`}>
+                        {!isMe && (
+                          <p className={`text-[10px] font-semibold mb-0.5 ${isGM ? 'text-red-400' : 'text-warroom-amber'}`}>
+                            {line.display_name}
+                          </p>
+                        )}
+                        <p className="text-sm text-slate-200">{line.content}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+                <div ref={chatEndRef} />
+              </div>
+              {typingUsers.length > 0 && (
+                <p className="text-[10px] text-slate-400 italic">
+                  {typingUsers.map((u) => u.display_name).join(', ')} typing...
+                </p>
+              )}
+              <ChatComposer onSend={sendMessage} onTyping={sendTyping} />
+            </div>
+          )}
+
+          {/* DIPLOMACY TAB */}
+          {activeTab === 'diplomacy' && (
+            <DiplomacyPanel
+              teamId={data.team.id}
+              diplomacyChannels={diplomacyChannels}
+              diplomacyDrafts={diplomacyDrafts}
+              diplomacyTarget={diplomacyTarget}
+              diplomacyUnread={diplomacyUnread}
+              teamOptions={teamOptions}
+              alliances={data.alliances}
+              leaderboard={leaderboard}
+              onDiplomacyTargetChange={(val) => setDiplomacyTarget(val)}
+              onStartDiplomacy={handleStartDiplomacy}
+              onSendDiplomacy={handleSendDiplomacy}
+              onDiplomacyDraftChange={(channelId, val) => setDiplomacyDrafts((prev) => ({ ...prev, [channelId]: val }))}
+              onRespondDiplomacy={handleRespondDiplomacy}
+              onDiplomacyClick={() => setDiplomacyUnread(0)}
+            />
           )}
         </div>
 
@@ -810,12 +992,6 @@ function App() {
           data={data}
           leaderboard={leaderboard}
           historyEntries={historyEntries}
-          intel={{
-            drops: data.intel_drops,
-            megaChallenge,
-            onSelectIntel: setSelectedIntel,
-            onOpenMega: () => setIsMegaOpen(true),
-          }}
           shouldShowReveal={shouldShowReveal}
           revealData={revealData}
           diplomacy={{
@@ -834,6 +1010,8 @@ function App() {
             onRespond: handleRespondDiplomacy,
             onClick: () => setDiplomacyUnread(0),
           }}
+          briefingAllies={data.briefing?.allies ?? []}
+          briefingThreats={data.briefing?.threats ?? []}
         />
       </main>
     </div>

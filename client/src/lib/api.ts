@@ -25,7 +25,7 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   return res.json()
 }
 
-export type TimerState = 'idle' | 'running' | 'paused' | 'complete' | 'intermission'
+export type TimerState = 'idle' | 'running' | 'paused' | 'resolving' | 'complete' | 'intermission'
 
 export type TimerPayload = {
   round: number
@@ -362,25 +362,57 @@ export async function solveMegaChallenge(answer: string) {
 }
 
 // Phone-a-Friend
-export async function usePhoneAFriend(): Promise<{ hint: { team_name: string; action_name: string; slot: number } }> {
-  return apiFetch('/api/game/lifelines/phone-a-friend', { method: 'POST' })
+export async function usePhoneAFriend(targetTeamId: number): Promise<{ hint: { team_name: string; action_name: string; slot: number } }> {
+  return apiFetch('/api/game/lifelines/phone-a-friend', {
+    method: 'POST',
+    body: JSON.stringify({ target_team_id: targetTeamId }),
+  })
 }
 
 // Round Recap
 export type RoundRecap = {
   round_number: number
+  is_final_round?: boolean
   narrative: string
   events: string[]
   standings: Array<{ team_id: number; nation_name: string; score: number; delta: number; escalation: number }>
-  my_stats: { prosperity: number; security: number; influence: number; escalation: number } | null
-  my_actions: Array<{ slot: number; action_name: string; category: string; target: string | null; success: boolean; covert?: boolean; detected?: boolean }>
+  my_stats: { prosperity: number; security: number; influence: number; escalation: number; prosperity_delta?: number; security_delta?: number; influence_delta?: number; score?: number; score_delta?: number } | null
+  my_actions: Array<{ slot: number; action_name: string; category: string; target: string | null; success: boolean; covert?: boolean; detected?: boolean; failure_reason?: string | null; effects?: string | null }>
+  incoming_attacks?: Array<{ attacker: string; action_name: string; category: string; success: boolean; effects?: string | null; covert?: boolean; detected?: boolean }>
   summary: { total_actions: number; successful: number; failed: number; by_category: Record<string, number> }
-  world: { total_escalation: number; nuke_unlocked: boolean }
+  world: { total_escalation: number; escalation_delta?: number; nuke_unlocked: boolean }
 }
 
 export async function fetchRoundRecap(roundNumber?: number): Promise<{ recap: RoundRecap | null }> {
   const qs = roundNumber ? `?round=${roundNumber}` : ''
   return apiFetch(`/api/game/recap${qs}`, { method: 'GET' })
+}
+
+// Final game summary
+export type GameSummaryAward = {
+  title: string
+  emoji: string
+  team: string
+  detail: string
+}
+
+export type GameSummary = {
+  standings: Array<{ team_id: number; nation_name: string; score: number; delta_from_baseline: number; escalation: number }>
+  awards: GameSummaryAward[]
+  score_history: Record<number, Array<{ round: number; score: number }>>
+  team_stats: Record<string, {
+    hostile_actions: number; peaceful_actions: number
+    covert_ops: number; successful_covert: number
+    backstabs: number; alliances_formed: number
+    total_actions: number; successful_actions: number
+    escalation: number; score_change: number
+  }>
+  total_rounds: number
+  world: { total_escalation: number; total_actions: number; total_successful: number }
+}
+
+export async function fetchFinalSummary(): Promise<{ summary: GameSummary | null }> {
+  return apiFetch('/api/game/final-summary', { method: 'GET' })
 }
 
 // Admin: Mega Challenge

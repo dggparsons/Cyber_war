@@ -228,14 +228,24 @@ export function AdminPanel() {
                 Start Game
               </button>
             )}
-            {(timerState === 'running' || timerState === 'paused' || timerState === 'complete') && (
+            {(timerState === 'running' || timerState === 'paused') && (
               <button className="rounded border border-warroom-cyan/50 bg-warroom-cyan/20 px-5 py-2 text-sm font-semibold text-warroom-cyan hover:bg-warroom-cyan/30" onClick={() => call('advance')}>
-                Resolve & Advance
+                Force Resolve Now
               </button>
+            )}
+            {timerState === 'resolving' && (
+              <span className="rounded border border-warroom-amber/50 bg-warroom-amber/20 px-5 py-2 text-sm font-semibold text-warroom-amber animate-pulse">
+                Resolving round...
+              </span>
             )}
             {timerState === 'intermission' && (
               <span className="rounded border border-purple-500/50 bg-purple-900/20 px-5 py-2 text-sm font-semibold text-purple-300 animate-pulse">
                 Intermission — next round auto-starts
+              </span>
+            )}
+            {timerState === 'complete' && (
+              <span className="rounded border border-slate-600 bg-slate-800 px-5 py-2 text-sm font-semibold text-slate-300">
+                Game Over
               </span>
             )}
             {timerState === 'running' ? (

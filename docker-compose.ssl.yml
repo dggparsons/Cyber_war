@@ -1,0 +1,48 @@
+version: '3.9'
+services:
+  backend:
+    build: ./api
+    env_file:
+      - api/.env.docker
+    volumes:
+      - backend-data:/app/instance
+    expose:
+      - "5050"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5050/api/health/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./client
+      args:
+        VITE_API_BASE_URL: https://un.blorebank.net
+    expose:
+      - "80"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  backend-data:
+  caddy_data:
+  caddy_config:

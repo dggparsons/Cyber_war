@@ -15,5 +15,8 @@ class ChatBuffer:
     def get(self, room: str) -> List[dict]:
         return list(self.buffers[room])
 
+    def clear(self) -> None:
+        self.buffers.clear()
+
 
 chat_buffer = ChatBuffer()

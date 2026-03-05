@@ -38,8 +38,14 @@ def _format_highlight(entry: dict) -> str:
 
 
 def _template_narrative(round_number: int, highlights: list[dict], crisis: dict | None = None) -> str:
-    if not highlights:
+    if not highlights and round_number <= 1:
         return INTRO_NARRATIVE
+    if not highlights:
+        lines = [f"## Round {round_number} Report\n"]
+        if crisis:
+            lines.append(f"**CRISIS ACTIVE:** {crisis.get('name', 'Unknown crisis')} — {crisis.get('description', '')}\n")
+        lines.append("*An uneasy calm settled over the world this round. All nations chose to hold their positions — but for how long?*")
+        return "\n".join(lines)
 
     lines = [f"## Round {round_number} Report\n"]
     if crisis:

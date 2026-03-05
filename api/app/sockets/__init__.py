@@ -42,6 +42,19 @@ def on_gm_disconnect():
         leave_room("gm_room")
 
 
+# ── /global namespace ────────────────────────────────────────────────────────
+
+@socketio.on("connect", namespace="/global")
+def on_global_connect():
+    """Global namespace is open to all authenticated users for timer/news broadcasts."""
+    join_room("global_room")
+
+
+@socketio.on("disconnect", namespace="/global")
+def on_global_disconnect():
+    leave_room("global_room")
+
+
 # ── /leaderboard namespace ───────────────────────────────────────────────────
 
 @socketio.on("connect", namespace="/leaderboard")

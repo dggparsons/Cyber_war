@@ -1,52 +1,53 @@
-"""Auto-generate one intel drop per team when a round starts."""
-from __future__ import annotations
+"""Auto-generate one intel drop per team when a round starts.
 
-import random
+Every team gets the SAME puzzle each round. Puzzle selection cycles through
+the pool in order (round 1 → puzzle 0, round 2 → puzzle 1, etc.), wrapping
+around if there are more rounds than puzzles.
+"""
+from __future__ import annotations
 
 from werkzeug.security import generate_password_hash
 
 from ..extensions import db
-from ..models import IntelDrop, Team
+from ..models import IntelDrop, Round, Team
 from ..data.intel_puzzles import INTEL_PUZZLE_POOL
-
-
-def _used_puzzle_indices() -> set[int]:
-    """Return indices of puzzles already used (by matching clue text)."""
-    existing_clues = {row.clue for row in db.session.query(IntelDrop.clue).all()}
-    return {i for i, p in enumerate(INTEL_PUZZLE_POOL) if p["clue"] in existing_clues}
 
 
 def generate_intel_for_round(round_id: int) -> int:
     """Create one intel drop per nation team for the given round.
 
+    All teams receive the same puzzle. The puzzle is chosen deterministically
+    based on the round number so each round gets a different puzzle.
+
     Returns the number of drops created.
     """
+    round_obj = Round.query.get(round_id)
+    if not round_obj:
+        return 0
+
     teams = Team.query.filter(Team.team_type != "observer").all()
     if not teams:
         return 0
 
-    used = _used_puzzle_indices()
-    available = [i for i in range(len(INTEL_PUZZLE_POOL)) if i not in used]
+    # Don't double-generate if drops already exist for this round
+    existing = IntelDrop.query.filter_by(round_id=round_id).count()
+    if existing > 0:
+        return 0
 
-    if len(available) < len(teams):
-        # Recycle if we've exhausted the pool
-        available = list(range(len(INTEL_PUZZLE_POOL)))
-
-    random.shuffle(available)
+    # Deterministic puzzle selection: round 1 → index 0, round 2 → index 1, etc.
+    idx = (round_obj.round_number - 1) % len(INTEL_PUZZLE_POOL)
+    puzzle = INTEL_PUZZLE_POOL[idx]
+    solution_hash = generate_password_hash(puzzle["solution"])
 
     count = 0
     for team in teams:
-        if not available:
-            break
-        idx = available.pop()
-        puzzle = INTEL_PUZZLE_POOL[idx]
         drop = IntelDrop(
             round_id=round_id,
             team_id=team.id,
             puzzle_type=puzzle["puzzle_type"],
             clue=puzzle["clue"],
             reward=puzzle["reward"],
-            solution_hash=generate_password_hash(puzzle["solution"]),
+            solution_hash=solution_hash,
         )
         db.session.add(drop)
         count += 1

@@ -62,6 +62,7 @@ def list_channels():
                     {
                         "id": m.id,
                         "content": m.content,
+                        "team_id": m.team_id,
                         "user_id": m.user_id,
                         "display_name": m.user.display_name if m.user else None,
                         "sent_at": m.created_at.isoformat(),
@@ -105,15 +106,16 @@ def start_channel():
 
     target_team = db.session.get(Team, target_id)
     # Notify both teams
-    for tid, other_tid, other_name in [
-        (target_id, team.id, team.nation_name),
-        (team.id, target_id, target_team.nation_name if target_team else "Unknown"),
+    for tid, other_tid, other_name, is_initiator in [
+        (target_id, team.id, team.nation_name, False),
+        (team.id, target_id, target_team.nation_name if target_team else "Unknown", True),
     ]:
         socketio.emit(
             "diplomacy:channel_opened",
             {
                 "channel_id": channel.id,
                 "status": "pending",
+                "is_initiator": is_initiator,
                 "with_team": {"id": other_tid, "nation_name": other_name},
             },
             namespace="/team",
@@ -201,6 +203,7 @@ def send_message():
     db.session.commit()
 
     msg_payload = {
+        "id": message.id,
         "channel_id": channel.id,
         "team_id": team.id,
         "content": content,

@@ -1,6 +1,11 @@
-"""Round lifecycle manager."""
+"""Round lifecycle manager.
+
+Admin clicks 'Start Game' once → all rounds auto-progress:
+  running → resolving → intermission → running → … → game over
+"""
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Literal
 import time
@@ -9,10 +14,12 @@ from flask import current_app
 
 from ..extensions import db, socketio
 from ..models import Round, IntelDrop, Team
-from .resolution import lock_top_proposals
+from .resolution import lock_top_proposals, resolve_round
 from .intel_generator import generate_intel_for_round
 
-TimerState = Literal["idle", "running", "paused", "complete", "intermission"]
+logger = logging.getLogger(__name__)
+
+TimerState = Literal["idle", "running", "paused", "resolving", "intermission", "complete"]
 
 INTERMISSION_SECONDS = 20
 
@@ -25,9 +32,11 @@ class RoundManager:
         self._remaining: int = self.round_duration
         self._timer_state: TimerState = "idle"
         self._intermission_duration: int = INTERMISSION_SECONDS
+        self._resolving = False  # guard against double-resolve
+
+    # ── Config helpers ──────────────────────────────────────────────
 
     def _get_duration_for_round(self, round_number: int) -> int:
-        """Return duration in seconds for a given round number from config."""
         try:
             durations = current_app.config.get("ROUND_DURATIONS", [])
         except RuntimeError:
@@ -49,6 +58,8 @@ class RoundManager:
         except RuntimeError:
             return 6
 
+    # ── Public API ──────────────────────────────────────────────────
+
     def current_round(self) -> Round | None:
         """Return the active round WITHOUT auto-activating pending rounds."""
         round_obj = (
@@ -64,68 +75,18 @@ class RoundManager:
             return round_obj
         return None
 
-    def advance_round(self) -> Round | None:
-        if self._timer_state == "intermission":
-            return None  # already transitioning between rounds
-        round_obj = self.current_round()
-        if not round_obj:
-            return None
-        round_obj.status = 'resolved'
-        round_obj.ended_at = datetime.now(timezone.utc)
-        db.session.add(round_obj)
-
-        round_limit = self._get_round_limit()
-        next_round_number = round_obj.round_number + 1
-        next_round: Round | None = None
-        if next_round_number <= round_limit:
-            next_round = Round.query.filter_by(round_number=next_round_number).first()
-            if not next_round:
-                next_round = Round(round_number=next_round_number, status='pending')
-                db.session.add(next_round)
-        db.session.commit()
-
-        self._stop_timer()
-
-        intermission = self._get_intermission_seconds()
-
-        if not next_round:
-            # Final round — game over
-            self._timer_state = "complete"
-            self._remaining = 0
-            self._active_round_id = None
-            socketio.emit('round:ended', {
-                'round': round_obj.round_number,
-                'next_round': None,
-                'intermission': 0,
-            }, namespace='/global')
-            return None
-
-        # Emit round:ended with intermission info
-        socketio.emit('round:ended', {
-            'round': round_obj.round_number,
-            'next_round': next_round.round_number,
-            'intermission': intermission,
-        }, namespace='/global')
-
-        # Generate intel for next round during intermission
-        generate_intel_for_round(next_round.id)
-
-        # Start intermission countdown, then auto-start next round
-        self._start_intermission(next_round, intermission)
-        return next_round
-
     def start_round(self) -> Round | None:
-        """Explicitly start the game: activate the first pending round and start its timer."""
-        # If already running or in intermission, don't double-start
-        if self._timer_state in ("running", "paused", "intermission"):
-            active = Round.query.filter(Round.status == 'active').first()
-            return active
+        """Admin clicks 'Start Game' once → activates Round 1 and begins
+        the fully automatic round cycle through to game completion."""
+        # Already running — don't double-start
+        if self._timer_state in ("running", "paused", "intermission", "resolving"):
+            return Round.query.filter(Round.status == 'active').first()
 
         active = Round.query.filter(Round.status == 'active').first()
         if active:
             self._active_round_id = active.id
             self.round_duration = self._get_duration_for_round(active.round_number)
-            if not self._timer_task and self._timer_state == "idle":
+            if not self._timer_task:
                 self._start_timer(active, resume_from=self._compute_remaining(active))
             return active
 
@@ -155,6 +116,81 @@ class RoundManager:
         self._start_timer(round_obj)
         return round_obj
 
+    def advance_round(self) -> Round | None:
+        """Resolve the current round and transition to the next one.
+        Called automatically when the timer expires, or manually by GM."""
+        if self._resolving:
+            logger.warning("advance_round called while already resolving — skipping")
+            return None
+        if self._timer_state == "intermission":
+            return None
+
+        self._resolving = True
+        try:
+            return self._do_advance()
+        finally:
+            self._resolving = False
+
+    def _do_advance(self) -> Round | None:
+        round_obj = Round.query.filter(Round.status == 'active').first()
+        if not round_obj:
+            return None
+
+        # ── Resolve ─────────────────────────────────────────────────
+        self._timer_state = "resolving"
+        self._remaining = 0
+
+        lock_top_proposals(round_obj)
+        try:
+            resolve_round(round_obj)
+        except Exception:
+            logger.exception("resolve_round() failed for round %s — advancing anyway", round_obj.round_number)
+
+        round_obj.status = 'resolved'
+        round_obj.ended_at = datetime.now(timezone.utc)
+        db.session.add(round_obj)
+
+        # ── Create next round ───────────────────────────────────────
+        round_limit = self._get_round_limit()
+        next_round_number = round_obj.round_number + 1
+        next_round: Round | None = None
+        if next_round_number <= round_limit:
+            next_round = Round.query.filter_by(round_number=next_round_number).first()
+            if not next_round:
+                next_round = Round(round_number=next_round_number, status='pending')
+                db.session.add(next_round)
+        db.session.commit()
+
+        # Stop any lingering timer task
+        self._cancel_timer()
+
+        if not next_round:
+            # Final round — game over
+            self._timer_state = "complete"
+            self._remaining = 0
+            self._active_round_id = None
+            socketio.emit('round:ended', {
+                'round': round_obj.round_number,
+                'next_round': None,
+                'intermission': 0,
+            }, namespace='/global')
+            return None
+
+        intermission = self._get_intermission_seconds()
+
+        socketio.emit('round:ended', {
+            'round': round_obj.round_number,
+            'next_round': next_round.round_number,
+            'intermission': intermission,
+        }, namespace='/global')
+
+        # Generate intel for next round during intermission
+        generate_intel_for_round(next_round.id)
+
+        # Start intermission → auto-start next round
+        self._start_intermission(next_round, intermission)
+        return next_round
+
     def pause_timer(self):
         if not self._active_round_id or self._timer_state != "running":
             return None
@@ -172,10 +208,11 @@ class RoundManager:
         return payload
 
     def reset_timer(self):
-        self._stop_timer()
+        self._cancel_timer()
         self._active_round_id = None
         self._timer_state = "idle"
         self._remaining = self.round_duration
+        self._resolving = False
 
     def timer_payload(self, round_obj: Round | None = None) -> dict:
         if round_obj is None:
@@ -210,10 +247,11 @@ class RoundManager:
             return False
         return self._timer_state in {"idle", "running", "paused"}
 
+    # ── Timer internals ─────────────────────────────────────────────
+
     def _start_intermission(self, next_round: Round, intermission_seconds: int):
         """Run an intermission countdown, then auto-start the next round."""
-        if self._timer_task:
-            self._stop_timer()
+        self._cancel_timer()
 
         self._active_round_id = next_round.id
         self._remaining = intermission_seconds
@@ -240,7 +278,7 @@ class RoundManager:
                     time.sleep(1)
                     self._remaining -= 1
 
-                # Intermission over — start the next round
+                # Intermission over — activate and start the next round
                 if self._active_round_id == round_id:
                     self._timer_task = None
 
@@ -256,7 +294,7 @@ class RoundManager:
                         'round': next_round_number,
                         'duration': self.round_duration,
                     }, namespace='/global')
-                    self._start_timer_direct(round_id, next_round_number)
+                    self._run_timer(round_id, next_round_number)
                 else:
                     self._timer_task = None
 
@@ -267,8 +305,8 @@ class RoundManager:
     def _start_timer(self, round_obj: Round, resume_from: int | None = None):
         if self._timer_task and self._active_round_id == round_obj.id:
             return
-        if self._timer_task and self._active_round_id != round_obj.id:
-            self._stop_timer()
+        if self._timer_task:
+            self._cancel_timer()
 
         self._active_round_id = round_obj.id
         self._remaining = resume_from if resume_from is not None else self.round_duration
@@ -276,101 +314,74 @@ class RoundManager:
 
         app = current_app._get_current_object()
 
-        def timer_loop(round_id: int, round_number: int):
+        def start_loop():
             with app.app_context():
-                while self._active_round_id == round_id and self._remaining >= 0:
-                    if self._timer_state == "paused":
-                        time.sleep(0.25)
-                        continue
-                    socketio.emit(
-                        'round:tick',
-                        {
-                            'round_id': round_id,
-                            'round': round_number,
-                            'remaining': self._remaining,
-                            'duration': self.round_duration,
-                            'state': self._timer_state,
-                            'server_time': datetime.now(timezone.utc).isoformat(),
-                        },
-                        namespace='/global',
-                    )
-                    time.sleep(1)
-                    if self._timer_state != "running":
-                        continue
-                    self._remaining -= 1
-                if self._active_round_id == round_id and self._timer_state == "running":
-                    self._timer_state = "complete"
-                    self._remaining = 0
-                    lock_top_proposals(round_id=round_id)
-                    socketio.emit(
-                        'round:timer_end',
-                        {
-                            'round_id': round_id,
-                            'round': round_number,
-                            'state': self._timer_state,
-                            'server_time': datetime.now(timezone.utc).isoformat(),
-                        },
-                        namespace='/global',
-                    )
-                self._timer_task = None
+                self._run_timer(round_obj.id, round_obj.round_number)
 
-        self._timer_task = socketio.start_background_task(timer_loop, round_obj.id, round_obj.round_number)
+        self._timer_task = socketio.start_background_task(start_loop)
 
-    def _start_timer_direct(self, round_id: int, round_number: int):
-        """Start a round timer when already inside a background task (no stop needed)."""
+    def _run_timer(self, round_id: int, round_number: int):
+        """Core timer loop — shared by _start_timer and intermission_loop.
+        When the timer reaches 0 it auto-resolves and advances."""
         self._active_round_id = round_id
-        self._remaining = self.round_duration
-        self._timer_state = "running"
+        self._remaining = getattr(self, '_remaining', self.round_duration)
+        if self._timer_state != "running":
+            self._remaining = self.round_duration
+            self._timer_state = "running"
 
-        app = current_app._get_current_object()
+        while self._active_round_id == round_id and self._remaining >= 0:
+            if self._timer_state == "paused":
+                time.sleep(0.25)
+                continue
+            socketio.emit(
+                'round:tick',
+                {
+                    'round_id': round_id,
+                    'round': round_number,
+                    'remaining': self._remaining,
+                    'duration': self.round_duration,
+                    'state': self._timer_state,
+                    'server_time': datetime.now(timezone.utc).isoformat(),
+                },
+                namespace='/global',
+            )
+            time.sleep(1)
+            if self._timer_state != "running":
+                continue
+            self._remaining -= 1
 
-        def timer_loop(rid: int, rnum: int):
-            with app.app_context():
-                while self._active_round_id == rid and self._remaining >= 0:
-                    if self._timer_state == "paused":
-                        time.sleep(0.25)
-                        continue
-                    socketio.emit(
-                        'round:tick',
-                        {
-                            'round_id': rid,
-                            'round': rnum,
-                            'remaining': self._remaining,
-                            'duration': self.round_duration,
-                            'state': self._timer_state,
-                            'server_time': datetime.now(timezone.utc).isoformat(),
-                        },
-                        namespace='/global',
-                    )
-                    time.sleep(1)
-                    if self._timer_state != "running":
-                        continue
-                    self._remaining -= 1
-                if self._active_round_id == rid and self._timer_state == "running":
-                    self._timer_state = "complete"
-                    self._remaining = 0
-                    lock_top_proposals(round_id=rid)
-                    socketio.emit(
-                        'round:timer_end',
-                        {
-                            'round_id': rid,
-                            'round': rnum,
-                            'state': self._timer_state,
-                            'server_time': datetime.now(timezone.utc).isoformat(),
-                        },
-                        namespace='/global',
-                    )
-                self._timer_task = None
+        # Timer expired — auto-resolve and advance
+        if self._active_round_id == round_id and self._timer_state == "running":
+            self._timer_state = "resolving"
+            self._remaining = 0
+            socketio.emit(
+                'round:timer_end',
+                {
+                    'round_id': round_id,
+                    'round': round_number,
+                    'state': 'resolving',
+                    'server_time': datetime.now(timezone.utc).isoformat(),
+                },
+                namespace='/global',
+            )
+            self._timer_task = None
+            logger.info("Round %d timer expired — auto-resolving", round_number)
+            self.advance_round()
+            return
 
-        self._timer_task = socketio.start_background_task(timer_loop, round_id, round_number)
+        self._timer_task = None
 
-    def _stop_timer(self):
+    def _cancel_timer(self):
+        """Signal the running timer/intermission loop to stop and wait for it."""
         if not self._timer_task:
             return
         current_task = self._timer_task
         self._active_round_id = None
         self._timer_state = "idle"
-        while self._timer_task is current_task:
+        # Wait for the background task to notice and exit
+        for _ in range(200):  # max ~10 seconds
+            if self._timer_task is not current_task:
+                break
             time.sleep(0.05)
 
     def _compute_remaining(self, round_obj: Round) -> int:

@@ -112,6 +112,8 @@ class Action(db.Model, TimestampMixin):
     success = db.Column(db.Boolean)
     covert = db.Column(db.Boolean, default=False)
     detected = db.Column(db.Boolean, default=False)
+    failure_reason = db.Column(db.String(256))
+    effects_summary = db.Column(db.String(512))
 
 
 class Message(db.Model, TimestampMixin):

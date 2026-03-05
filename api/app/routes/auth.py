@@ -24,7 +24,7 @@ TEAM_JOIN_CODES = {
     "DAWN-SHIELD": "UK",
     "NEON-GRID": "JP",
     "SKY-ARC": "IN",
-    "LOTUS-VAULT": "IL",
+    "MAPLE-NET": "CA",
     "UN-PEACE": "UN",
 }
 
@@ -102,6 +102,13 @@ def join_with_code():
     db.session.add(user)
     db.session.commit()
     login_user(user)
+
+    # Notify existing team members of the new roster
+    roster = [
+        {"id": u.id, "display_name": u.display_name, "role": u.role, "is_captain": u.is_captain}
+        for u in User.query.filter_by(team_id=team.id).all()
+    ]
+    socketio.emit("team:roster", roster, namespace="/team", room=f"team:{team.id}")
 
     return jsonify(
         {

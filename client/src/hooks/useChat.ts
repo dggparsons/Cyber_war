@@ -42,16 +42,24 @@ export function useChat(enabled = true) {
         setTypingUsers((prev) => prev.filter((u) => u.user_id !== data.user_id))
       }
     }
+    // Request history once connected (or immediately if already connected)
+    const connectHandler = () => socket.emit('chat:history')
 
-    socket.emit('chat:history')
     socket.on('chat:history', historyHandler)
     socket.on('chat:message', messageHandler)
     socket.on('chat:typing', typingHandler)
+    socket.on('connect', connectHandler)
+
+    // If already connected, request history now; otherwise wait for connect event
+    if (socket.connected) {
+      socket.emit('chat:history')
+    }
 
     return () => {
       socket.off('chat:history', historyHandler)
       socket.off('chat:message', messageHandler)
       socket.off('chat:typing', typingHandler)
+      socket.off('connect', connectHandler)
       Object.values(typingTimers.current).forEach(clearTimeout)
     }
   }, [enabled])

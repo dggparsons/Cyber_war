@@ -33,13 +33,19 @@ export function ChatComposer({ onSend, onTyping }: { onSend: (msg: string) => vo
   }
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} className="mt-3 flex gap-2">
       <input
-        className="mt-3 w-full rounded border border-slate-700 bg-warroom-blue/60 px-3 py-2 text-sm text-slate-100 focus:border-warroom-cyan focus:outline-none"
+        className="flex-1 rounded border border-slate-700 bg-warroom-blue/60 px-3 py-2 text-sm text-slate-100 focus:border-warroom-cyan focus:outline-none"
         placeholder="Type a message..."
         value={value}
         onChange={handleChange}
       />
+      <button
+        type="submit"
+        className="rounded bg-warroom-cyan/20 border border-warroom-cyan/40 px-3 py-2 text-xs font-semibold text-warroom-cyan hover:bg-warroom-cyan/30 transition-colors"
+      >
+        Send
+      </button>
     </form>
   )
 }

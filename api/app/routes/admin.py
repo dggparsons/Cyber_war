@@ -10,7 +10,7 @@ from ..extensions import db, socketio, limiter
 from ..models import Round, IntelDrop, MegaChallenge, Team, User
 from ..utils.passwords import hash_password
 from ..services.round_manager import round_manager
-from ..services.resolution import resolve_round, lock_top_proposals
+
 from ..services.global_state import serialize_global_state, set_nuke_unlocked, clear_doom_flag
 from ..services.crisis import crisis_history, inject_crisis, list_available_crises, clear_crisis_state
 from ..services.proposals import build_proposal_preview
@@ -60,8 +60,6 @@ def advance_round():
     active = round_manager.current_round()
     if not active:
         return jsonify({"error": "no_active_round"}), 400
-    lock_top_proposals(active)
-    resolve_round(active)
     new_round = round_manager.advance_round()
     if not new_round:
         return jsonify({"round": active.round_number, "status": "complete"})

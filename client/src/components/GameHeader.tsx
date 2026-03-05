@@ -29,8 +29,9 @@ export function GameHeader({
     switch (timerState) {
       case 'running': return { label: 'SUBMISSIONS OPEN', color: 'text-emerald-400 border-emerald-400/40' }
       case 'paused': return { label: 'PAUSED', color: 'text-warroom-amber border-warroom-amber/40 animate-pulse' }
+      case 'resolving': return { label: 'RESOLVING', color: 'text-warroom-amber border-warroom-amber/40 animate-pulse' }
       case 'intermission': return { label: 'INTERMISSION', color: 'text-purple-400 border-purple-400/40 animate-pulse' }
-      case 'complete': return { label: 'RESOLVING', color: 'text-red-400 border-red-400/40' }
+      case 'complete': return { label: 'GAME OVER', color: 'text-red-400 border-red-400/40' }
       default: return { label: 'WAITING', color: 'text-slate-400 border-slate-500/40' }
     }
   })()

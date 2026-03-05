@@ -1,7 +1,9 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { GameState } from '../lib/gameUtils'
-import type { MegaChallengeData, RoundRecap } from '../lib/api'
+import { NATION_COLORS } from '../lib/gameUtils'
+import type { MegaChallengeData, RoundRecap, GameSummary } from '../lib/api'
 
 export type IntelDropItem = { id: number; title: string; description: string; reward: string; status: string }
 
@@ -419,7 +421,7 @@ const CAT_LABELS: Record<string, string> = {
   nuclear: 'Nuclear',
 }
 
-export function RoundRecapModal({ recap, onClose }: { recap: RoundRecap; onClose: () => void }) {
+export function RoundRecapModal({ recap, onClose, isGameOver }: { recap: RoundRecap; onClose: () => void; isGameOver?: boolean }) {
   const topMover = [...recap.standings].sort((a, b) => b.delta - a.delta)[0]
   const biggestDrop = [...recap.standings].sort((a, b) => a.delta - b.delta)[0]
 
@@ -466,41 +468,103 @@ export function RoundRecapModal({ recap, onClose }: { recap: RoundRecap; onClose
         {/* Your team results */}
         {recap.my_stats && (
           <div className="mt-5 rounded border border-warroom-cyan/40 bg-warroom-cyan/5 p-4">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-cyan/70 mb-3">Your Nation Status</p>
+            {/* Score headline */}
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-cyan/70">Your Nation Status</p>
+              {recap.my_stats.score != null && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-400">Score: <span className="text-lg font-semibold text-warroom-cyan">{recap.my_stats.score}</span></span>
+                  {recap.my_stats.score_delta != null && recap.my_stats.score_delta !== 0 && (
+                    <span className={`text-sm font-bold ${recap.my_stats.score_delta > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {recap.my_stats.score_delta > 0 ? '+' : ''}{recap.my_stats.score_delta} this round
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-4 gap-3 text-center text-sm">
               <div>
                 <p className="text-[10px] uppercase text-slate-500">Prosperity</p>
                 <p className="text-lg font-semibold text-emerald-400">{recap.my_stats.prosperity}</p>
+                {recap.my_stats.prosperity_delta != null && recap.my_stats.prosperity_delta !== 0 && (
+                  <p className={`text-xs font-semibold ${recap.my_stats.prosperity_delta > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {recap.my_stats.prosperity_delta > 0 ? '+' : ''}{recap.my_stats.prosperity_delta} from baseline
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-[10px] uppercase text-slate-500">Security</p>
                 <p className="text-lg font-semibold text-blue-400">{recap.my_stats.security}</p>
+                {recap.my_stats.security_delta != null && recap.my_stats.security_delta !== 0 && (
+                  <p className={`text-xs font-semibold ${recap.my_stats.security_delta > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {recap.my_stats.security_delta > 0 ? '+' : ''}{recap.my_stats.security_delta} from baseline
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-[10px] uppercase text-slate-500">Influence</p>
                 <p className="text-lg font-semibold text-purple-400">{recap.my_stats.influence}</p>
+                {recap.my_stats.influence_delta != null && recap.my_stats.influence_delta !== 0 && (
+                  <p className={`text-xs font-semibold ${recap.my_stats.influence_delta > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {recap.my_stats.influence_delta > 0 ? '+' : ''}{recap.my_stats.influence_delta} from baseline
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-[10px] uppercase text-slate-500">Escalation</p>
                 <p className={`text-lg font-semibold ${recap.my_stats.escalation > 20 ? 'text-red-400' : recap.my_stats.escalation > 10 ? 'text-warroom-amber' : 'text-slate-300'}`}>{recap.my_stats.escalation}</p>
               </div>
             </div>
+
+            {/* Your outgoing actions */}
             {recap.my_actions.length > 0 && (
               <div className="mt-3 border-t border-slate-700/50 pt-3">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Your Actions This Round</p>
+                <p className="text-[10px] uppercase tracking-widest text-warroom-cyan/70 mb-2">Your Actions — Consequences</p>
                 {recap.my_actions.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <span className={`text-[10px] uppercase font-semibold ${CAT_COLORS[a.category] ?? 'text-slate-400'}`}>Slot {a.slot}</span>
-                    <span className="text-slate-200">{a.action_name}</span>
-                    {a.target && <span className="text-slate-500">on <span className="text-slate-300">{a.target}</span></span>}
-                    {a.covert && (
-                      <span className={`text-[9px] uppercase tracking-widest px-1 rounded border ${a.detected ? 'text-red-400 border-red-400/40' : 'text-warroom-cyan border-warroom-cyan/40'}`}>
-                        {a.detected ? 'DETECTED' : 'UNDETECTED'}
+                  <div key={i} className="rounded border border-slate-700/50 bg-slate-800/30 p-2.5 mb-1.5">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className={`text-[10px] uppercase font-semibold ${CAT_COLORS[a.category] ?? 'text-slate-400'}`}>{a.action_name}</span>
+                      {a.target && <span className="text-slate-500">on <span className="text-slate-300">{a.target}</span></span>}
+                      {a.covert && (
+                        <span className={`text-[9px] uppercase tracking-widest px-1 rounded border ${a.detected ? 'text-red-400 border-red-400/40' : 'text-warroom-cyan border-warroom-cyan/40'}`}>
+                          {a.detected ? 'DETECTED' : 'UNDETECTED'}
+                        </span>
+                      )}
+                      <span className={`ml-auto text-xs font-semibold ${a.success ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {a.success ? 'SUCCESS' : 'FAILED'}
                       </span>
+                    </div>
+                    {a.effects && (
+                      <p className="mt-1 text-[11px] text-emerald-400/80">{a.effects}</p>
                     )}
-                    <span className={`ml-auto text-xs font-semibold ${a.success ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {a.success ? 'SUCCESS' : 'FAILED'}
-                    </span>
+                    {!a.success && a.failure_reason && (
+                      <p className="mt-1 text-[11px] text-red-400/80">{a.failure_reason}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Incoming attacks against you */}
+            {recap.incoming_attacks && recap.incoming_attacks.length > 0 && (
+              <div className="mt-3 border-t border-slate-700/50 pt-3">
+                <p className="text-[10px] uppercase tracking-widest text-red-400/70 mb-2">Incoming Actions Against You</p>
+                {recap.incoming_attacks.map((a, i) => (
+                  <div key={i} className="rounded border border-red-500/20 bg-red-900/10 p-2.5 mb-1.5">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-slate-300 font-semibold">{a.attacker}</span>
+                      <span className="text-slate-500">used</span>
+                      <span className={`text-[10px] uppercase font-semibold ${CAT_COLORS[a.category] ?? 'text-slate-400'}`}>{a.action_name}</span>
+                      <span className={`ml-auto text-xs font-semibold ${a.success ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {a.success ? 'HIT' : 'BLOCKED'}
+                      </span>
+                    </div>
+                    {a.success && a.effects && (
+                      <p className="mt-1 text-[11px] text-red-400/80">Impact: {a.effects}</p>
+                    )}
+                    {!a.success && (
+                      <p className="mt-1 text-[11px] text-emerald-400/80">Your defences held — no damage taken.</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -512,8 +576,8 @@ export function RoundRecapModal({ recap, onClose }: { recap: RoundRecap; onClose
         {recap.narrative && (
           <div className="mt-5">
             <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-amber/70 mb-2">Situation Report</p>
-            <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-4 text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-              {recap.narrative}
+            <div className="rounded border border-slate-700/60 bg-warroom-blue/30 p-4 text-sm text-slate-300 leading-relaxed [&_strong]:text-warroom-amber [&_strong]:font-semibold [&_em]:text-slate-400 [&_h2]:font-pixel [&_h2]:text-warroom-amber [&_h2]:text-sm [&_h2]:mt-3 [&_ul]:list-disc [&_ul]:pl-4 [&_li]:text-slate-300 [&_p]:mb-2">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{recap.narrative}</ReactMarkdown>
             </div>
           </div>
         )}
@@ -579,6 +643,11 @@ export function RoundRecapModal({ recap, onClose }: { recap: RoundRecap; onClose
             <span className={`font-semibold ${recap.world.total_escalation >= 60 ? 'text-red-400' : recap.world.total_escalation >= 40 ? 'text-warroom-amber' : 'text-slate-300'}`}>
               {recap.world.total_escalation}
             </span>
+            {recap.world.escalation_delta != null && recap.world.escalation_delta !== 0 && (
+              <span className={`text-xs font-semibold ${recap.world.escalation_delta > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                (+{recap.world.escalation_delta} this round)
+              </span>
+            )}
           </div>
           {recap.world.nuke_unlocked && (
             <span className="text-[10px] uppercase tracking-widest text-red-400 font-semibold animate-pulse">Nuclear weapons unlocked</span>
@@ -591,7 +660,153 @@ export function RoundRecapModal({ recap, onClose }: { recap: RoundRecap; onClose
             className="rounded border border-warroom-amber/50 bg-warroom-amber/10 px-8 py-2.5 text-sm uppercase tracking-widest text-warroom-amber hover:bg-warroom-amber/20 font-semibold"
             onClick={onClose}
           >
-            Proceed to Round {recap.round_number + 1}
+            {isGameOver ? 'View Final Results' : `Proceed to Round ${recap.round_number + 1}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const AWARD_ICONS: Record<string, string> = {
+  crown: '\u{1F451}',
+  turtle: '\u{1F422}',
+  rocket: '\u{1F680}',
+  fire: '\u{1F525}',
+  dove: '\u{1F54A}',
+  detective: '\u{1F575}',
+  dagger: '\u{1F5E1}',
+  handshake: '\u{1F91D}',
+  bomb: '\u{1F4A3}',
+  target: '\u{1F3AF}',
+}
+
+export function GameOverModal({ summary, onClose }: { summary: GameSummary; onClose: () => void }) {
+  const winner = summary.standings[0]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+      <div className="max-h-[95vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-warroom-amber/60 bg-slate-900/95 p-6 shadow-2xl shadow-warroom-amber/30">
+        {/* Header */}
+        <div className="text-center border-b border-slate-700/60 pb-5">
+          <p className="text-[10px] uppercase tracking-[0.4em] text-red-400/80 font-semibold">Game Over</p>
+          <h2 className="font-pixel text-2xl text-warroom-amber mt-1">Final Results</h2>
+          <p className="text-xs text-slate-400 mt-2">{summary.total_rounds} rounds completed</p>
+        </div>
+
+        {/* Winner spotlight */}
+        {winner && (
+          <div className="mt-5 rounded-lg border border-warroom-amber/50 bg-gradient-to-r from-warroom-amber/10 via-warroom-amber/5 to-transparent p-5 text-center">
+            <p className="text-3xl">{'\u{1F451}'}</p>
+            <p className="font-pixel text-xl text-warroom-amber mt-2">{winner.nation_name}</p>
+            <p className="text-sm text-slate-300 mt-1">Wins with <span className="text-warroom-amber font-semibold">{winner.score}</span> points</p>
+          </div>
+        )}
+
+        {/* Awards */}
+        {summary.awards.length > 0 && (
+          <div className="mt-5">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-amber/70 mb-3">Awards</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {summary.awards.map((award, i) => (
+                <div key={i} className="rounded border border-slate-700/60 bg-warroom-blue/30 p-3 text-center">
+                  <p className="text-xl">{AWARD_ICONS[award.emoji] ?? award.emoji}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400 mt-1">{award.title}</p>
+                  <p className="text-sm font-semibold text-warroom-cyan mt-0.5">{award.team}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{award.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Final standings */}
+        <div className="mt-5">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-amber/70 mb-2">Final Standings</p>
+          <div className="overflow-hidden rounded border border-slate-700/60">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-800/60 text-[10px] uppercase tracking-widest text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left">#</th>
+                  <th className="px-3 py-2 text-left">Nation</th>
+                  <th className="px-3 py-2 text-right">Score</th>
+                  <th className="px-3 py-2 text-right">Change</th>
+                  <th className="px-3 py-2 text-right">Escalation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/40">
+                {summary.standings.map((s, i) => (
+                  <tr key={s.team_id} className={i === 0 ? 'bg-warroom-amber/5' : ''}>
+                    <td className="px-3 py-1.5 text-warroom-amber font-pixel text-xs">
+                      {i === 0 ? '\u{1F451}' : i + 1}
+                    </td>
+                    <td className="px-3 py-1.5 text-slate-200 font-semibold">{s.nation_name}</td>
+                    <td className="px-3 py-1.5 text-right text-slate-200">{s.score}</td>
+                    <td className={`px-3 py-1.5 text-right font-semibold ${s.delta_from_baseline > 0 ? 'text-emerald-400' : s.delta_from_baseline < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                      {s.delta_from_baseline > 0 ? '+' : ''}{s.delta_from_baseline}
+                    </td>
+                    <td className={`px-3 py-1.5 text-right ${s.escalation > 20 ? 'text-red-400' : s.escalation > 10 ? 'text-warroom-amber' : 'text-slate-400'}`}>
+                      {s.escalation}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Score progression line chart */}
+        {Object.keys(summary.score_history).length > 0 && (() => {
+          const teamIds = summary.standings.map(s => s.team_id)
+          const nameMap: Record<number, string> = {}
+          summary.standings.forEach(s => { nameMap[s.team_id] = s.nation_name })
+          const maxRounds = Math.max(...Object.values(summary.score_history).map(h => h.length), 0)
+          const chartData = Array.from({ length: maxRounds }, (_, i) => {
+            const point: Record<string, any> = { round: `R${i + 1}` }
+            for (const tid of teamIds) {
+              const h = summary.score_history[tid]
+              point[nameMap[tid]] = h?.[i]?.score ?? null
+            }
+            return point
+          })
+          const names = teamIds.map(tid => nameMap[tid])
+          return (
+            <div className="mt-5">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-warroom-amber/70 mb-2">Score Progression</p>
+              <div className="rounded border border-slate-700/60 bg-warroom-blue/20 p-4">
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="round" stroke="#94a3b8" fontSize={10} />
+                    <YAxis stroke="#94a3b8" fontSize={10} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 10, color: '#94a3b8' }} />
+                    {names.map((name, idx) => (
+                      <Line key={name} type="monotone" dataKey={name} stroke={NATION_COLORS[idx % NATION_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* World stats */}
+        <div className="mt-5 flex items-center justify-between rounded border border-slate-700/40 bg-warroom-blue/20 px-4 py-3 text-sm">
+          <div className="flex items-center gap-6 text-xs">
+            <span className="text-slate-500">Total Actions: <span className="text-slate-200 font-semibold">{summary.world.total_actions}</span></span>
+            <span className="text-slate-500">Successful: <span className="text-emerald-400 font-semibold">{summary.world.total_successful}</span></span>
+            <span className="text-slate-500">Global Escalation: <span className={`font-semibold ${summary.world.total_escalation >= 60 ? 'text-red-400' : 'text-warroom-amber'}`}>{summary.world.total_escalation}</span></span>
+          </div>
+        </div>
+
+        {/* Close */}
+        <div className="mt-6 flex justify-center">
+          <button
+            className="rounded border border-slate-600 bg-slate-800 px-8 py-2.5 text-sm uppercase tracking-widest text-slate-300 hover:bg-slate-700"
+            onClick={onClose}
+          >
+            Close
           </button>
         </div>
       </div>
